@@ -1,0 +1,156 @@
+@startuml
+
+abstract class BaseClass {
+- name : String
+-- Private --
+-info(msg : String)
+-debug(msg : String)
+-error(msg: String)
+
+-- Public --
+.. Setter ..
++setName(Name : String)
+.. Getter ..
++getName() : String
+}
+
+BaseClass <|-- Worker
+BaseClass <|-- Coordinator
+BaseClass <|-- Learner
+BaseClass <|-- Communicator
+BaseClass <|-- SynchronizerCoordinator
+BaseClass <|-- Aggregator
+BaseClass <|-- DataScheduler
+BaseClass <|-- Scheduler
+
+class Worker {
+-- Private --
+- learner : Learner
+- communicator : Communicator
+- identifier : String
+-- Public --
++onUpdate(data : array)
+.. Setter ..
++setIdentifier(identifier : String)
++setLearner(learner : Learner)
++setCommunicator(communicator : Communicator)
++setSynchronizer(synchronizer : SynchronizerLocal)
+.. Getter ..
++getIdentifier() : String
++getLearner() : Learner
++getCommunicator() : Communicator
++getSynchronizer() : SynchronizerLocal
+}
+
+class Coordinator {
+-- Private --
+- aggregator : Aggregator
+- communicator : Communicator
+-- Public --
++onModelUpdate(param : Parameters, workerId : String)
+.. Setter ..
++setAggregator(aggregator : Aggregator)
++setCommunicator(communicator : Communicator)
++setSynchronizer(synchronizer : SynchronizerCoordinator)
+
+.. Getter ..
++getAggregator() : Aggregator
++getCommunicator() : Communicator
++getSynchronizer() : SynchronizerCoordinator
+}
+
+
+class Communicator {
+-- Private --
+
+-- Public --
++ connectToCoordinator()
++ disconnect()
++ sendModelToCoordinator(param : Parameters)
++ sendModelToWorkers(identifiers : String[])
++ receiveModelFromWorkers(identifiers : String[])
++ BroadcastModel(param : Parameters)
++ setOnModelUpdate(modelUpdate : Function)
+
+.. Setter ..
++setCoordinatorPort(port : Int)
++setCoordinatorHostName(hostname : String)
+.. Getter ..
++getCoordinatorPort() : Int
++getCoordinatorHostName() : String
+}
+
+abstract class DataScheduler {
+-- Private --
+
+-- Public --
++run()
++initiate()
+.. Setter ..
++setOnUpdate(update : Function)
++setDataSource(source : DataSource)
+.. Getter ..
++getDataSource(): DataSource
+}
+
+interface DataSource {
+-- Public --
++initiate()
++getbatch(batchSize : Int) : Array
+}
+
+class Parameters {
+-- Private --
+
+-- Public --
++addParameters(identifier : String, weights : Array)
+.. Getter ..
++getParametersByIdentifier(identifier : String) : Array
++getParameters() : Dict
+}
+
+
+
+abstract class Aggregator {
+-- Private --
+
+-- Public --
++ aggregate(params : Parameters[]) : Parameters
+
+}
+
+class SynchronizerCoordinator {
+-- Private --
+
+-- Public --
+
+.. Setter ..
+
+.. Getter ..
+}
+
+abstract class Learner{
+-- Private --
+
+-- Public --
++update(data : Array) : float
++score(data : Array) : float
++evaluate() : Boolean
+.. Setter ..
++setParameters(parameters : Parameters)
+.. Getter ..
++getParameters()  : Parameters
+}
+
+
+
+class Scheduler {
+-- Private --
+
+-- Public --
+
+.. Setter ..
+
+.. Getter ..
+}
+@enduml
