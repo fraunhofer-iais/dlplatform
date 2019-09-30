@@ -127,7 +127,7 @@ class PyTorchNN(IncrementalLearner):
         for k,v in param.get().items():
             if self._mode == 'gpu':
                 if v.shape == ():
-                    state_dict[k] = torch.cuda.tensor(v, device=self._device)
+                    state_dict[k] = torch.tensor(v, device=self._device)
                 else:
                     state_dict[k] = torch.cuda.FloatTensor(v, device=self._device)
             else:
