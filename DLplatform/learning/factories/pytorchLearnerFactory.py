@@ -23,8 +23,23 @@ class PytorchLearnerFactory(LearnerFactory):
         self.delta          = delta
         
     def getLearner(self):
+        device = torch.device("cuda:0" if torch.cuda.is_available() else None)
+        if device is None:
+            mode = 'cpu'
+        else:
+            mode = 'gpu'
         torchNetwork = self.network.cuda()
-        learner = PyTorchNN(batchSize=self.batchSize, syncPeriod=self.syncPeriod, delta=self.delta)
+        learner = PyTorchNN(batchSize=self.batchSize, syncPeriod=self.syncPeriod, delta=self.delta, mode=mode, device=device)
+        learner.setCore(torchNetwork)
+        learner.setLoss(self.lossFunction)
+        learner.setUpdateRule(self.updateRule, self.learningRate, **self.learningParams)
+        return learner
+
+    def getLearnerOnDevice(self, mode, device):
+        torchNetwork = self.network
+        if mode == 'gpu':
+            torchNetwork = torchNetwork.cuda(device)
+        learner = PyTorchNN(batchSize=self.batchSize, syncPeriod=self.syncPeriod, delta=self.delta, mode=mode, device=device)
         learner.setCore(torchNetwork)
         learner.setLoss(self.lossFunction)
         learner.setUpdateRule(self.updateRule, self.learningRate, **self.learningParams)
