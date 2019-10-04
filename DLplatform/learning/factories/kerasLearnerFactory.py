@@ -50,5 +50,8 @@ class KerasLearnerFactory(LearnerFactory):
         learner.setCore(nn)
         return learner
 
+    def getLearnerOnDevice(self, mode, device):
+        return self.getLearner()
+
     def __str__(self):
         return "Keras Learner, network " + str(self.network) + ", update rule " + self.updateRule +", learning rate " + str(self.learningRate) + ", loss function " + self.lossFunction + ", batch size " + str(self.batchSize) + ", sync period " + str(self.syncPeriod) + ", delta " + str(self.delta)
