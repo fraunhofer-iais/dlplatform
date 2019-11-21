@@ -93,10 +93,10 @@ class Coordinator(baseClass):
         self._violations        = []
         self._nodesInViolation  = []
         self._balancingSet      = {}
-        self._registeredNodes   = []
+        self._activeNodes	= []
         self._initHandler       = InitializationHandler()
         self._learningLogger    = None
-        self._cachedNodesAmount	= 0
+        self._allNodes		= []
 
         # initiallizing pipes for communication, in contrast to the worker, Coordinator can also send messages to
         # the communicator
@@ -273,8 +273,8 @@ class Coordinator(baseClass):
             self._learningLogger.logModel(filename = "startState_node" + str(message['id']), params = message['param'])
             self._synchronizer._refPoint = newRefPoint
             self._communicator.sendAveragedModel(identifiers = [nodeId], param = newParams, flags = {"setReference":True})
-            self._registeredNodes.append(nodeId)
-            self._cachedNodesAmount += 1
+            self._activeNodes.append(nodeId)
+            self._allNodes.append(nodeId)
             #TODO: maybe we have to check the balancing set here again. 
             #If a node registered, while we are doing a full sync, or a balancing operation, 
             #we might need to check. But then, maybe it's all ok like this.
@@ -286,10 +286,8 @@ class Coordinator(baseClass):
             self.info("Coordinator received a deregistration")
             self._communicator.learningLogger.logDeregistrationMessage(exchange, routing_key, message['id'], message_size, 'receive')
             self._learningLogger.logModel(filename = "finalState_node" + str(message['id']), params = message['param'])
-            self._registeredNodes.remove(message['id'])
-            if message['id'] in set(self._balancingSet.keys()) and self._balancingSet[message['id']] is None:
-                self._balancingSet.pop(message['id'])
-            if len(self._registeredNodes) == 0:
+            self._activeNodes.remove(message['id'])
+            if len(self._activeNodes) == 0:
                 self.info("No active workers left, exiting.")
                 sys.exit()
         #self.info('ENDTIME_coordinator_onMessageReceived: '+str(time.time()))
@@ -318,7 +316,7 @@ class Coordinator(baseClass):
             # we have to enter this in two cases:
             # - we got a violation
             # - we did not get all the balancing models
-            if len(self._violations) > 0 or (self._cachedNodesAmount != len(self._registeredNodes) and len(self._balancingSet.keys()) != 0):
+            if len(self._violations) > 0 or len(self._balancingSet.keys()) != 0:
                 #self.info('STARTTIME_coordinator_run: '+str(time.time()))
                 if len(self._violations) > 0:
                     message = loads(self._violations[0])
@@ -330,11 +328,7 @@ class Coordinator(baseClass):
                     # a full_sync - might be a case that blocking everything, balancing one violation and then considering the next one
                     # is a better idea from the point of view of effectiveness
                     del self._violations[0]
-                elif self._cachedNodesAmount != len(self._registeredNodes):
-                    self._cachedNodesAmount = len(self._registeredNodes)
-                nodes, params, flags = self._synchronizer.evaluate(list(self._balancingSet.keys()), 
-                                                            list(self._balancingSet.values()), 
-                                                            self._registeredNodes)
+                nodes, params, flags = self._synchronizer.evaluate(self._balancingSet, self._activeNodes, self._allNodes)
                 # fill balancing set with None for new nodes in balancing set
                 for newNode in nodes:
                     if not newNode in self._balancingSet.keys():
@@ -343,17 +337,17 @@ class Coordinator(baseClass):
                 if params is None and None in self._balancingSet.values():
                     # request for models from balancing set nodes
                     for newNode in nodes:
-                        if self._balancingSet[newNode] is None:
+                        if self._balancingSet[newNode] is None and newNode in self._activeNodes:
                             self._communicator.sendBalancingRequest(newNode)
-                elif not params is None and not None in self._balancingSet.values():
+                # None can still be there in _balancingSet,values() if the nodes are inactive and used for balancing
+                # then reference point (previous average) is used instead
+                elif not params is None:
                     self._communicator.sendAveragedModel(nodes, params, flags)
                     self._learningLogger.logBalancing(flags, self._nodesInViolation, list(self._balancingSet.keys()))
-                    if set(nodes) == set(self._registeredNodes) or "nosync" in flags:
+                    if set(nodes) == set(self._allNodes) or "nosync" in flags:
                         self._learningLogger.logAveragedModel(nodes, params, flags)
                     self._balancingSet.clear()
                     self._nodesInViolation = []
-                elif not params is None and None in self._balancingSet.values():
-                    self.error("Something went terribly wrong. Params returned from the synchonizer, indicating a full synchronization. However, there are still None values in the balancing set.")
                 #self.info('ENDTIME_coordinator_run: '+str(time.time()))
 
         self._communicator.join()

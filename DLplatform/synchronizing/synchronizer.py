@@ -66,7 +66,7 @@ class Synchronizer(baseClass):
 
         return self._aggregator
 
-    def evaluate(self, nodes: List[str], param: List[Parameters], registeredNodes: List[str]) -> (List[int], Parameters):
+    def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[int], Parameters):
         '''
         Main method that should be implemented by a particular
         synchronization mechanism. This is the method called 
@@ -74,9 +74,9 @@ class Synchronizer(baseClass):
 
         Parameters
         ----------
-        nodes - list of nodes' identifiers that are in violation or requested for balancing
-        param - parameters of the nodes in violation or requested for balancing
-        registredNodes - list of nodes' identifiers that are registered on Coordinator
+        nodesDict - dictionary of nodes' identifiers as keys and parameters as values that are in violation or requested for balancing
+        activeNodes - list of nodes' identifiers that are active now
+        allNodes - list of nodes' identifiers that were taking part in the learning
 
         Returns
         -------

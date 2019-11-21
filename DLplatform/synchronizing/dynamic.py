@@ -14,7 +14,7 @@ class DynamicSync(Synchronizer):
     a violation occurs. This is the most basic form of resolution protocol.
     '''
 
-    def __init__(self, delta: float, name = "DynamicSync"):
+    def __init__(self, delta: float, refPoint = None, name = "DynamicSync"):
         '''
         Initialize BaseClass parent with name DynamicSync
 
@@ -28,23 +28,25 @@ class DynamicSync(Synchronizer):
         '''
         Synchronizer.__init__(self, name = name)
         self._delta = delta
+        self._refPoint = refPoint
     
-    def evaluate(self, nodes: List[str], param: List[Parameters], registeredNodes: List[str]) -> (List[str], Parameters):
+    def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[str], Parameters):
         '''
         Mechanism of finding the averaged model
         Aggregator is called only in case when the nodes in balancing process 
         are all the registered nodes. When there is at least one violation the 
         returned list of nodes to take part in the balancing is the list of all the
         registered nodes. As long as aggregator was not called the returned params 
-        are None. As long as there are None among param it means that not all 
+        are None. As long as there are None among param for the node that is still active 
+        it means that not all 
         the requested nodes for balancing returned the parameters and aggregation 
         still cannot be called.
 
         Parameters
         ----------
-        nodes - list of nodes' identifiers that are in violation or requested for balancing
-        param - parameters of the nodes in violation or requested for balancing
-        registredNodes - list of nodes' identifiers that are registered on Coordinator
+        nodesDict - dictionary of nodes' identifiers as keys and their parameters as values that are in violation or requested for balancing
+        activeNodes - list of nodes' identifiers that are active currently
+        allNodes - list of nodes' identifiers that were taking part in learning
 
         Returns
         -------
@@ -60,14 +62,21 @@ class DynamicSync(Synchronizer):
             self.error("No aggregator is set")
             raise AttributeError("No aggregator is set")
 
-        if set(nodes) == set(registeredNodes) and not None in param:
-            return registeredNodes, self._aggregator(param), {"setReference":True}
-        elif None in param:
-            # not all nodes for which parameters have been requested have answered. Thus, we wait.
-            return [], None, {}
+        if set(list(nodesDict.keys())) == set(allNodes):
+            for id in nodesDict:
+                if id in set(activeNodes) and nodesDict[id] is None:
+                    # not all nodes for which parameters have been requested have answered. Thus, we wait.
+                    return [], None, {}
+                # this only can happen when we already have deactivated nodes, so hopefully by that time we have a reference point
+                # so instead of deactivated node parameters, that we cannot request, we take reference point value
+                elif not id in set(activeNodes):
+                    nodesDict[id] = self._refPoint
+            newModel = self._aggregator(list(nodesDict.values()))
+            self._refPoint = newModel.getCopy()
+            return activeNodes, newModel, {"setReference":True}
         else:
             # there is a violation and we are not waiting for requested models. Thus we trigger a full synchronization.
-            return registeredNodes, None, {}
+            return allNodes, None, {}
 
     def __str__(self):
         return "Dynamic synchronization, delta=" + str(self._delta)
@@ -103,7 +112,7 @@ class DynamicHedgeSync(DynamicSync):
         self._delta = delta
         self._refPoint = refPoint
         
-    def evaluate(self, nodes: List[str], param: List[Parameters], registeredNodes: List[str]) -> (List[str], Parameters):
+    def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[str], Parameters):
         '''
         Mechanism of finding the averaged model
         Aggregator is called both in case when the nodes in balancing process 
@@ -114,9 +123,9 @@ class DynamicHedgeSync(DynamicSync):
 
         Parameters
         ----------
-        nodes - list of nodes' identifiers that are in violation or requested for balancing
-        param - parameters of the nodes in violation or requested for balancing
-        registredNodes - list of nodes' identifiers that are registered on Coordinator
+        nodesDict - dictionary of nodes' identifiers as keys and their parameters as values that are in violation or requested for balancing
+        activeNodes - list of nodes' identifiers that are active currently
+        allNodes - list of nodes' identifiers that were taking part in learning
 
         Returns
         -------
@@ -132,34 +141,39 @@ class DynamicHedgeSync(DynamicSync):
             self.error("No aggregator is set")
             raise AttributeError("No aggregator is set")
 
-        if set(nodes) == set(registeredNodes) and not None in param:
+        for id in nodesDict:
+            if id in set(activeNodes) and nodesDict[id] is None:
+                # not all nodes for which parameters have been requested have answered. Thus, we wait.
+                return [], None, {}
+            # this only can happen when we already have deactivated nodes, so hopefully by that time we have a reference point
+            # so instead of deactivated node parameters, that we cannot request, we take reference point value
+            elif not id in set(activeNodes):
+                nodesDict[id] = self._refPoint
+
+        if set(list(nodesDict.keys())) == set(allNodes):
             #i.e., a full sync was triggered and we have received all models.
-            newModel = self._aggregator(param)
+            newModel = self._aggregator(list(nodesDict.values()))
             self._refPoint = newModel.getCopy()
-            return registeredNodes, newModel, {"setReference":True}
-        elif len([p for p in param if p != None]) > (len(registeredNodes) / 2):
-            #if models have been received for more than half of all learners, 
-            #but a full sync has not been triggered yet, trigger it.
-            return registeredNodes, None, {}
-        elif None in param:
-            #not all nodes for which parameters have been requested have answered. Thus, we wait.
-            return [], None, {}
+            return activeNodes, newModel, {"setReference":True}
         else:
             #first, try local balancing:
-            newModel = self._aggregator(param)
+            newModel = self._aggregator(list(nodesDict.values()))
             if self._refPoint is None:
                 dist = self._delta + 1.0 #if refpoint is None (at initialization), the distance is set to ensure a violation
             else:
                 dist = newModel.distance(self._refPoint)
             if dist <= self._delta:
-                return nodes, newModel, {}
+                # updating only active nodes
+                updateNodes = list(set(list(nodesDict.keys())).intersection(set(activeNodes)))
+                return updateNodes, newModel, {}
             else:
-                requestSet = self.augmentBalancingSet(nodes, registeredNodes)
-                if len(set(requestSet).union(set(nodes))) >= (len(registeredNodes) / 2):
+                # allow to request for balancing even inactive nodes
+                requestSet = self.augmentBalancingSet(list(nodesDict.keys()), allNodes)
+                if len(set(requestSet).union(set(list(nodesDict.keys())))) >= (len(allNodes) / 2):
                     #if the balancing set grew to more than half of all learners, trigger 
                     #a full sync instead of a local synchronization. This is a hedging 
                     #strategy to avoid endless local balancing.
-                    return registeredNodes, None, {}
+                    return allNodes, None, {}
                 return requestSet, None, {}
             
     def augmentBalancingSet(self, nodes: List[str], registeredNodes: List[str]) -> List[str]:
