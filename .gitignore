@@ -1,0 +1,10 @@
+*.pyc
+/DLplatform/__pycache__/*.pyc
+/DLplatform/*.pyc
+/DLplatform/aggregating/__pycache__/*.pyc
+/DLplatform/communicating/__pycache__/*.pyc
+/DLplatform/dataprovisioning/__pycache__/*.pyc
+/DLplatform/learning/__pycache__/*.pyc
+/DLplatform/parameters/__pycache__/*.pyc
+/DLplatform/stopping/__pycache__/*.pyc
+/DLplatform/synchronizing/__pycache__/*.pyc
