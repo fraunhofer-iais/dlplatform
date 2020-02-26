@@ -5,7 +5,8 @@ import logging
 
 LOGGER_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
-class baseClass:
+
+class baseClass():
     '''
     Abstract class that provides fundamental naming ('getName','setName') and logging ('defineLogger','debug','error','info') functionalities.
 
@@ -14,7 +15,7 @@ class baseClass:
 
     # make it an abstract class
     __metaclass__   = ABCMeta
-    _logger         = None
+    #_logger         = None
     _name           = "baseClass"
 
     def __init__(self,
@@ -35,8 +36,24 @@ class baseClass:
 
         # create logger
         self._logger = self.defineLogger(debug)
-
-
+    
+    '''
+    When using multiprocessing, the baseclass is serialized using pickle (in windows, not so under linux). 
+    However, the logge cannot be pickled, since it contains a thread.lock object.
+    To avoid this, we implemented the following two functions which govern the behavior of pickle.
+    In here, the logger object is disregarded, only its name is stored. With this name, the correct logger can be loaded, later.
+    '''
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        if '_logger' in d:
+            d['_logger'] = d['_logger'].name
+        return d
+    
+    def __setstate__(self, d):
+        if '_logger' in d:
+            d['_logger'] = logging.getLogger(d['_logger'])
+        self.__dict__.update(d)
+        
     def defineLogger(self, debug):
 
         '''
@@ -115,8 +132,8 @@ class baseClass:
 
         if self._logger is not None:
             self._logger.debug(msg)
-        else:
-            raise LoggerNotFoundError
+        #else:
+        #    raise LoggerNotFoundError
 
 
     def error(self, msg : str):

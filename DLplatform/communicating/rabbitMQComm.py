@@ -68,7 +68,31 @@ class RabbitMQComm(Communicator):
         '''
         self._exchange = exchange
         self._topics = topics
-
+    
+    '''
+    When using multiprocessing, the communicator is serialized using pickle (in windows, not so under linux). 
+    However, the connection cannot be pickled, since it contains a thread.lock object.
+    To avoid this, we implemented the following two functions which govern the behavior of pickle.
+    In here, the connection object is disregarded and reopened in the child process, later.
+    '''
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        if '_publishConnection' in d:
+            d['_publishConnection'] = "reconnect_required"
+        if '_publishChannel' in d:
+            d['_publishChannel'] = "reconnect_required"
+        return d
+    
+    def __setstate__(self, d):
+        if '_publishConnection' in d and d['_publishConnection'] == "reconnect_required":            
+            credentials = pika.PlainCredentials(d['_user'], d['_password'])
+            d['_publishConnection'] = pika.BlockingConnection(pika.ConnectionParameters(host = d['_hostname'], port = d['_port'], 
+                                        credentials = credentials, blocked_connection_timeout = None, socket_timeout = None, heartbeat = None))
+            d['_publishChannel'] = d['_publishConnection'].channel()
+            d['_publishChannel'].exchange_declare(exchange=d['_exchangeCoordinator'], exchange_type='topic')
+            d['_publishChannel'].exchange_declare(exchange=d['_exchangeNodes'], exchange_type='topic')
+        self.__dict__.update(d)
+    
     def _setupPublishConnection(self):
         self._publishConnection         = self.connect()
         self._publishChannel            = self._publishConnection.channel()
@@ -380,12 +404,12 @@ class RabbitMQComm(Communicator):
     def _setupConsumeConnection(self):
         consumerConnection = self.connect()
         channel = consumerConnection.channel()
-        queue = channel.queue_declare(exclusive=True).method.queue
+        queue = channel.queue_declare(exclusive=True, queue='').method.queue
 
         for topic in self._topics:
             channel.queue_bind(exchange=self._exchange, queue=queue, routing_key=topic)
 
-        channel.basic_consume(self._onMessageReceived, queue=queue, no_ack=True)
+        channel.basic_consume(on_message_callback=self._onMessageReceived, queue=queue, auto_ack=True)
         return channel
 
     def run(self):
