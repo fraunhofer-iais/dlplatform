@@ -15,7 +15,7 @@ Please import anaconda environment with dlplatform_env.yml file or use the follo
     - keras==2.1.4
     - markdown==3.1.1
     - numpy==1.16.4
-    - pika==0.11.2
+    - pika==1.1.0
     - pkgconfig==1.5.1
     - protobuf==3.8.0
     - pyyaml==5.1.1
@@ -32,3 +32,9 @@ Please import anaconda environment with dlplatform_env.yml file or use the follo
     - wrapt==1.11.2
 
 With python==3.5.2, Anaconda 4.2.0, and cuda-8.0, cudnn5.1 for gpu users.
+
+# Copyright
+Copyright 2020 Fraunhofer IAIS and VW Research Group
+Maintainers:
+Michael Kamp info@michaelkamp.org
+Linara Adilova linara.adilova@iais.fraunhofer.de
