@@ -8,5 +8,8 @@ class SklearnBatchLearnerFactory():
     def getLearner(self) -> Learner:
         return self.sklearnLearner(**self.sklearnParams)
     
+    def getLearnerOnDevice(self, mode, device):
+        return self.sklearnLearner(**self.sklearnParams)
+    
     def __str__(self):
         return "Scikit-learn batch learner factory."

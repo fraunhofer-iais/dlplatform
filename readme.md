@@ -34,7 +34,21 @@ Please import anaconda environment with dlplatform_env.yml file or use the follo
 With python==3.5.2, Anaconda 4.2.0, and cuda-8.0, cudnn5.1 for gpu users.
 
 # Copyright
-Copyright 2020 Fraunhofer IAIS and VW Research Group
-Maintainers:
+Copyright 2020 Fraunhofer IAIS
+
+Core contributors:
+
 Michael Kamp info@michaelkamp.org
+
 Linara Adilova linara.adilova@iais.fraunhofer.de
+
+Further contributors:
+
+Tim Wirtz tim.tirtz@iais.fraunhofer.de
+
+Joachim Sicking joachim.sicking@iais.fraunhofer.de
+
+Nathalie Paul nathalie.paul@iais.fraunhofer.de
+
+Alexander Zimmerman alexander.zimmermann@iais.fraunhofer.de
+
