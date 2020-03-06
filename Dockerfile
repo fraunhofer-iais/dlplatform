@@ -17,7 +17,9 @@ WORKDIR /deeplearning
 
 COPY piprequirements.txt .
 
-RUN apt-get install -y python3 python3-pip pytest
+RUN apt-get install -y python3 python3-pip
+
+RUN pip3 install pytest
 
 RUN pip3 install -r piprequirements.txt
 
