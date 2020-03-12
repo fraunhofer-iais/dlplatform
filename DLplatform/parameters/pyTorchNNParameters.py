@@ -185,9 +185,6 @@ class PyTorchNNParameters(Parameters):
         newParams = PyTorchNNParameters(newState)
         return newParams
 
-    def getList(self):
-        return self.flatten()
-
     def setToGeometricMedian(self, params : List):
         print("Should be calculating GM")
         return

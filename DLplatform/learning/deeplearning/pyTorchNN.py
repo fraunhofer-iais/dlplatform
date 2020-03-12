@@ -45,7 +45,7 @@ class PyTorchNN(IncrementalLearner):
         localConditionHolds = True
         self._syncCounter += 1
         if self._syncCounter == self._syncPeriod:
-            msg, localConditionHolds = self._synchronizer.evaluateLocal(self.getParameters().getList(), self._flattenReferenceParams)
+            msg, localConditionHolds = self._synchronizer.evaluateLocal(self._flattenParameters(self.getParameters()), self._flattenReferenceParams)
             self._syncCounter = 0
 
         return msg, localConditionHolds
@@ -144,4 +144,10 @@ class PyTorchNN(IncrementalLearner):
         for k, v in self._core.state_dict().items():
             state_dict[k] = v.data.cpu().numpy()
         return PyTorchNNParameters(state_dict)
+
+    def _flattenParameters(self, param):
+        flatParam = []
+        for k,v in param.get().items():
+            flatParam += np.ravel(v).tolist()
+        return np.asarray(flatParam)
 

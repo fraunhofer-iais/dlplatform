@@ -99,14 +99,6 @@ class Parameters:
          
         raise NotImplementedError
 
-    def getList(self):
-        '''
-        returns list of numeric parameters
-        in case of network it is flatten version of parameters
-        '''
-
-        raise NotImplementedError
-    
     def getCopy(self):
         '''
 

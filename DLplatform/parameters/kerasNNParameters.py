@@ -2,7 +2,7 @@ from DLplatform.parameters import Parameters
 
 import numpy as np
 from typing import List
-import hdmedians as hd
+#import hdmedians as hd
     
 class KerasNNParameters(Parameters):
     '''
@@ -185,9 +185,6 @@ class KerasNNParameters(Parameters):
         newParams = KerasNNParameters(newWeights)
         return newParams
 
-    def getList(self):
-        return self.flatten()
-
     def setToGeometricMedian(self, params : List):
         models = params
 
@@ -214,7 +211,7 @@ class KerasNNParameters(Parameters):
                 else:
                     once = False
             b = np.concatenate([b.reshape((-1, 1)), c.reshape((-1, 1))], axis=1)
-            median_val = np.array(hd.geomedian(b))
+            median_val = np.array(b[0]) #hd.geomedian(b))
             sizes = []
             for j in shapes:
                 size = 1

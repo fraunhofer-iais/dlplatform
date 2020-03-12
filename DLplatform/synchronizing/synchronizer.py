@@ -66,7 +66,7 @@ class Synchronizer(baseClass):
 
         return self._aggregator
 
-    def evaluateLocal(self):
+    def evaluateLocal(self, param, paramRef):
         '''
         Method that should be implemented by a particular
         synchronization mechanism. This is the method called

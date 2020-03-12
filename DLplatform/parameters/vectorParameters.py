@@ -48,6 +48,3 @@ class VectorParameter(Parameters):
     
     def getCopy(self) -> np.ndarray:
         return VectorParameter(self._weights.copy())
-
-    def getList(self):
-        return self._weights
