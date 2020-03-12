@@ -12,7 +12,7 @@ from DLplatform.learning.factories import LearnerFactory
 
 class PytorchLearnerFactory(LearnerFactory):
     
-    def __init__(self, network : nn.Module, updateRule, learningRate, lossFunction, batchSize, learningParams = None, syncPeriod = 1, delta = None):
+    def __init__(self, network : nn.Module, updateRule, learningRate, lossFunction, batchSize, learningParams = None, syncPeriod = 1):
         self.network        = network
         self.updateRule     = updateRule
         self.learningRate   = learningRate
@@ -20,7 +20,6 @@ class PytorchLearnerFactory(LearnerFactory):
         self.lossFunction   = lossFunction
         self.batchSize      = batchSize
         self.syncPeriod     = syncPeriod
-        self.delta          = delta
         
     def getLearner(self):
         device = torch.device("cuda:0" if torch.cuda.is_available() else None)
@@ -29,7 +28,7 @@ class PytorchLearnerFactory(LearnerFactory):
         else:
             mode = 'gpu'
         torchNetwork = self.network.cuda()
-        learner = PyTorchNN(batchSize=self.batchSize, syncPeriod=self.syncPeriod, delta=self.delta, mode=mode, device=device)
+        learner = PyTorchNN(batchSize=self.batchSize, syncPeriod=self.syncPeriod, mode=mode, device=device)
         learner.setCore(torchNetwork)
         learner.setLoss(self.lossFunction)
         learner.setUpdateRule(self.updateRule, self.learningRate, **self.learningParams)
@@ -39,13 +38,13 @@ class PytorchLearnerFactory(LearnerFactory):
         torchNetwork = self.network
         if mode == 'gpu':
             torchNetwork = torchNetwork.cuda(device)
-        learner = PyTorchNN(batchSize=self.batchSize, syncPeriod=self.syncPeriod, delta=self.delta, mode=mode, device=device)
+        learner = PyTorchNN(batchSize=self.batchSize, syncPeriod=self.syncPeriod, mode=mode, device=device)
         learner.setCore(torchNetwork)
         learner.setLoss(self.lossFunction)
         learner.setUpdateRule(self.updateRule, self.learningRate, **self.learningParams)
         return learner
 
     def __str__(self):
-        return "PyTorch Learner, network " + str(self.network) + ", update rule " + self.updateRule +", learning rate " + str(self.learningRate) + ", loss function " + self.lossFunction + ", batch size " + str(self.batchSize) + ", sync period " + str(self.syncPeriod) + ", delta " + str(self.delta)
+        return "PyTorch Learner, network " + str(self.network) + ", update rule " + self.updateRule +", learning rate " + str(self.learningRate) + ", loss function " + self.lossFunction + ", batch size " + str(self.batchSize) + ", sync period " + str(self.syncPeriod)
 
 

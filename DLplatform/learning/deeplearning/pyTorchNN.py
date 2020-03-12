@@ -9,8 +9,8 @@ import torch.optim as optim
 from collections import OrderedDict
 
 class PyTorchNN(IncrementalLearner):
-    def __init__(self, batchSize, syncPeriod, delta, mode, device, name = "PyTorchNN"):
-        IncrementalLearner.__init__(self, batchSize = batchSize, syncPeriod = syncPeriod, delta = delta, name = name)
+    def __init__(self, batchSize, syncPeriod, mode, device, name = "PyTorchNN"):
+        IncrementalLearner.__init__(self, batchSize = batchSize, syncPeriod = syncPeriod, name = name)
 
         self._core          		= None
         self._flattenReferenceParams    = None

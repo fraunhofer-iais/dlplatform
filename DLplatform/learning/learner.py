@@ -252,7 +252,7 @@ class IncrementalLearner(Learner):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, batchSize : int, syncPeriod : int, delta : float, name = "IncrementalLearner", identifier = ""):
+    def __init__(self, batchSize : int, syncPeriod : int, name = "IncrementalLearner", identifier = ""):
         '''
         Initialize all the parameters with initial values and base class with name IncrementalLearner
 
@@ -262,9 +262,6 @@ class IncrementalLearner(Learner):
         syncPeriod - defines the periodicity of local condition checking. For periodic synchronization it means that 
             every syncPeriod examples synchronization will be performed. For dynamic synchronization it means that
             every syncPeriod examples local divergence will be checked.
-        delta - parameter for checking local condition, defines maximal possible distance between reference model and 
-            current state of the model. If delta is set to None it means that localCondition will check only amount of
-            examples seen, i.e. it is periodic synchronization case
         identifier - can be set from initializer, but generally set from the setter. It is equal to the identifier of the
             Worker that contains this IncrementalLearner
 
@@ -277,7 +274,6 @@ class IncrementalLearner(Learner):
         Learner.__init__(self, name, identifier)
         self._batchSize                 = batchSize
         self._syncPeriod                = syncPeriod
-        self._delta                     = delta
         
 
         self._referenceModel            = None

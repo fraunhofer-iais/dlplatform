@@ -20,14 +20,13 @@ class KerasLearnerFactory(LearnerFactory):
     This neural networks is assigned to a learner object which is returned.
 
     '''
-    def __init__(self, network : KerasNetwork, updateRule, learningRate, lossFunction, batchSize, syncPeriod, delta):
+    def __init__(self, network : KerasNetwork, updateRule, learningRate, lossFunction, batchSize, syncPeriod):
         self.network        = network
         self.updateRule     = updateRule
         self.learningRate   = learningRate
         self.lossFunction   = lossFunction
         self.batchSize      = batchSize
         self.syncPeriod     = syncPeriod
-        self.delta          = delta
         
     def getLearner(self):
         from DLplatform.learning.deeplearning.kerasNN import KerasNN
@@ -46,7 +45,7 @@ class KerasLearnerFactory(LearnerFactory):
             session = tf.Session(graph = graph, config = config)
             session.run(tf.global_variables_initializer())
 
-        learner = KerasNN(batchSize=self.batchSize, syncPeriod=self.syncPeriod, delta=self.delta, session=session)
+        learner = KerasNN(batchSize=self.batchSize, syncPeriod=self.syncPeriod, session=session)
         learner.setCore(nn)
         return learner
 
@@ -54,4 +53,4 @@ class KerasLearnerFactory(LearnerFactory):
         return self.getLearner()
 
     def __str__(self):
-        return "Keras Learner, network " + str(self.network) + ", update rule " + self.updateRule +", learning rate " + str(self.learningRate) + ", loss function " + self.lossFunction + ", batch size " + str(self.batchSize) + ", sync period " + str(self.syncPeriod) + ", delta " + str(self.delta)
+        return "Keras Learner, network " + str(self.network) + ", update rule " + self.updateRule +", learning rate " + str(self.learningRate) + ", loss function " + self.lossFunction + ", batch size " + str(self.batchSize) + ", sync period " + str(self.syncPeriod)

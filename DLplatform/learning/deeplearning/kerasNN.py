@@ -6,8 +6,8 @@ import time
 from typing import List
 
 class KerasNN(IncrementalLearner):
-    def __init__(self, batchSize, syncPeriod, delta, session, name = "KerasNN"):
-        IncrementalLearner.__init__(self, batchSize = batchSize, syncPeriod = syncPeriod, delta = delta, name = name)
+    def __init__(self, batchSize, syncPeriod, session, name = "KerasNN"):
+        IncrementalLearner.__init__(self, batchSize = batchSize, syncPeriod = syncPeriod, name = name)
 
         self._core          = None
 
