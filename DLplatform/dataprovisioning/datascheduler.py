@@ -22,7 +22,7 @@ class DataScheduler(baseClass, Process):
     def __init__(self, name = "DataScheduler"):
         '''
         Initialize a parent class with name DataScheduler.
-        Initialize a Process for method self.generateSample.
+        Initialize a Process for method self.generateSamples.
 
         Returns
         -------
@@ -31,7 +31,7 @@ class DataScheduler(baseClass, Process):
         '''
 
         baseClass.__init__(self, name = name)
-        Process.__init__(self, target = self.generateSample)
+        Process.__init__(self, target = self.generateSamples)
 
         self._dataSource            = None
 
