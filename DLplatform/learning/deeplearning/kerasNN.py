@@ -36,17 +36,12 @@ class KerasNN(IncrementalLearner):
 
         '''
         localConditionHolds = True
-        currentDivergence = None
         self._syncCounter += 1
         if self._syncCounter == self._syncPeriod:
-            if not self._delta is None:
-                currentDivergence = self.calculateCurrentDivergence()
-                localConditionHolds = currentDivergence <= self._delta
-            else:
-                localConditionHolds = False
+            msg, localConditionHolds = self._synchronizer.evaluateLocal(self.getParameters().getList(), self._flattenReferenceParams)
             self._syncCounter = 0
 
-        return currentDivergence, localConditionHolds
+        return msg, localConditionHolds
 
     def update(self, data: List) -> List:
         '''
@@ -125,13 +120,3 @@ class KerasNN(IncrementalLearner):
         with self._session.as_default():
             with self._session.graph.as_default():
                 return KerasNNParameters(self._core.get_weights())
-
-    def calculateCurrentDivergence(self):
-        flattenCoreParams = self._flattenParameters(self.getParameters())
-        return np.linalg.norm(flattenCoreParams - self._flattenReferenceParams)
-
-    def _flattenParameters(self, param):
-        flatParam = []
-        for wi in param.get():
-            flatParam += np.ravel(wi).tolist()
-        return np.asarray(flatParam)

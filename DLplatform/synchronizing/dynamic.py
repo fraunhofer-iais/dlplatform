@@ -29,6 +29,10 @@ class DynamicSync(Synchronizer):
         Synchronizer.__init__(self, name = name)
         self._delta = delta
         self._refPoint = refPoint
+
+    def evaluateLocal(self, modelParam, refParam):
+        currentDivergence = self._aggregator.calculateDivergence(modelParam, refParam)
+        return str(currentDivergence) + "<=" + str(self._delta), currentDivergence <= self._delta
     
     def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[str], Parameters):
         '''
@@ -111,7 +115,11 @@ class DynamicHedgeSync(DynamicSync):
         Synchronizer.__init__(self, name = name)
         self._delta = delta
         self._refPoint = refPoint
-        
+
+    def evaluateLocal(self, modelParam, refParam):
+        currentDivergence = self._aggregator.calculateDivergence(modelParam, refParam)
+        return str(currentDivergence) + "<=" + str(self._delta), currentDivergence <= self._delta
+
     def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[str], Parameters):
         '''
         Mechanism of finding the averaged model

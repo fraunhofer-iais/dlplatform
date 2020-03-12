@@ -4,24 +4,24 @@ from DLplatform.parameters import Parameters
 from typing import List
 import numpy as np
 
-class Average(Aggregator):
+class GeometricMedian(Aggregator):
     '''
     Provides a method to calculate an averaged model from n individual models (using the arithmetic mean)
     '''
 
-    def __init__(self, name = "Average"):
+    def __init__(self, name="Geometric median"):
         '''
 
         Returns
         -------
         None
         '''
-        Aggregator.__init__(self, name = name)
+        Aggregator.__init__(self, name=name)
 
     def calculateDivergence(self, param1, param2):
-        return np.linalg.norm(param1 - param2)**2
+        return np.linalg.norm(param1 - param2)
 
-    def __call__(self, params : List[Parameters]) -> Parameters:
+    def __call__(self, params: List[Parameters]) -> Parameters:
         '''
 
         This aggregator takes n lists of model parameters and returns a list of component-wise arithmetic means.
@@ -36,10 +36,8 @@ class Average(Aggregator):
 
         '''
         newParams = params[0].getCopy()
-        for i in range(1,len(params)):
-            newParams.add(params[i])
-        newParams.scalarMultiply(1/float(len(params)))
+        newParams.setToGeometricMedian(params)
         return newParams
-        
+
     def __str__(self):
-        return "Averaging"
+        return "Geometric median"

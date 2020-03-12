@@ -26,6 +26,7 @@ class Learner(baseClass):
         self._isTraining                = False
         self._learningLogger            = None
         self._communicator              = None
+        self._synchronizer              = None
         
     def setIdentifier(self, identifier):
         '''
@@ -156,6 +157,9 @@ class Learner(baseClass):
     
     def setStoppingCriterion(self, stoppingCriterion):
         self._stoppingCriterion = stoppingCriterion
+
+    def setSynchronizer(self, synchronizer):
+        self._synchronizer = synchronizer
         
     def requestInitialModel(self):
         '''
@@ -317,9 +321,9 @@ class IncrementalLearner(Learner):
             # second element of metrics is an array with predictions
             self._learningLogger.logPredictionsLabels(metrics[1], [t[1] for t in currentBatch])
             #self.info('STARTTIME_checkLocalCondition: '+str(time.time()))
-            curDist, localConditionHolds = self.checkLocalConditionHolds()
+            localEvaluateMsg, localConditionHolds = self.checkLocalConditionHolds()
             #self.info('ENDTIME_checkLocalCondition: '+str(time.time()))
-            self._learningLogger.logViolation(curDist, self._delta, localConditionHolds)
+            self._learningLogger.logViolation(localEvaluateMsg, localConditionHolds)
             if not self._stoppingCriterion is None and self._stoppingCriterion(self._seenExamples, time.time()):
                 self.stopExecution()
             if not localConditionHolds:

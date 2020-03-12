@@ -66,6 +66,16 @@ class Synchronizer(baseClass):
 
         return self._aggregator
 
+    def evaluateLocal(self):
+        '''
+        Method that should be implemented by a particular
+        synchronization mechanism. This is the method called
+        by Learner to understand if there is a violation (for case of dynamic averaging)
+        or some other condition is broken.
+        '''
+
+        raise NotImplementedError
+
     def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[int], Parameters):
         '''
         Main method that should be implemented by a particular

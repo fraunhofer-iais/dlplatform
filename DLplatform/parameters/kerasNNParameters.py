@@ -2,6 +2,7 @@ from DLplatform.parameters import Parameters
 
 import numpy as np
 from typing import List
+import hdmedians as hd
     
 class KerasNNParameters(Parameters):
     '''
@@ -183,3 +184,53 @@ class KerasNNParameters(Parameters):
             newWeights.append(arr.copy())
         newParams = KerasNNParameters(newWeights)
         return newParams
+
+    def getList(self):
+        return self.flatten()
+
+    def setToGeometricMedian(self, params : List):
+        models = params
+
+        shapes = []
+        b = []
+        once = True
+        newWeightsList = []
+        try:
+            for i, model in enumerate(models):
+                w2 = model.get()
+                c = []
+                c = np.array(c)
+                for i in range(len(w2)):
+                    z = np.array(w2[i])
+
+                    if len(shapes) < 8:
+                        shapes.append(z.shape)
+                    d = np.array(w2[i].flatten()).squeeze()
+                    c = np.concatenate([c, d])
+                if (once):
+                    b = np.zeros_like(c)
+                    b[:] = c[:]
+                    once = False
+                else:
+                    once = False
+            b = np.concatenate([b.reshape((-1, 1)), c.reshape((-1, 1))], axis=1)
+            median_val = np.array(hd.geomedian(b))
+            sizes = []
+            for j in shapes:
+                size = 1
+                for k in j:
+                    size *= k
+                sizes.append(size)
+            newWeightsList = []
+
+            chunks = []
+            count = 0
+            for size in sizes:
+                chunks.append([median_val[i + count] for i in range(size)])
+                count += size
+            for chunk, i in zip(chunks, range(len(shapes))):
+                newWeightsList.append(np.array(chunk).reshape(shapes[i]))
+
+        except Exception as e:
+            print("Error happened! Message is ", e)
+        self.set(newWeightsList)

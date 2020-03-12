@@ -10,7 +10,14 @@ class PeriodicSync(Synchronizer):
     '''
     def __init__(self, name = "PeriodicSync"):
         Synchronizer.__init__(self, name = name)
-    
+
+    '''
+    with periodic protocol the synchronization should be performed always
+    so local condition never holds as soon as it is checked
+    '''
+    def evaluateLocal(self):
+        return "period of training passed", False
+
     def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[str], Parameters):
         '''
 
