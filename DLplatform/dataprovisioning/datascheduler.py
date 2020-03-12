@@ -57,14 +57,15 @@ class DataScheduler(baseClass, Process):
             
         return self._dataSource.getNext()
 
-    def generateSample(self):
+    def generateSamples(self):
         '''
         Main method that runs in an endless loop generating examples for training.
         Should be implemented in a particular DataScheduler.
 
         '''
 
-        raise NotImplementedError
+        self._dataSource.prepare()
+        pass
 
     def setConnections(self,
                        workerConnection): #   : Connection):

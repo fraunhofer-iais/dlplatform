@@ -184,6 +184,7 @@ class Worker(baseClass):
             raise ValueError(error_text)
 
         self._dataScheduler = datascheduler
+        self._dataScheduler._dataSource
         self.info("Set DataScheduler to " + self._dataScheduler.getName())
 
     def getDataScheduler(self) -> DataScheduler:

@@ -8,7 +8,7 @@ class IntervalDataScheduler(DataScheduler):
 
         self._interval = interval
 
-    def generateSample(self):
+    def generateSamples(self):
         '''
 
         Processes next data point from training dataset, i.e. appends it to the data buffer of the worker
@@ -17,6 +17,7 @@ class IntervalDataScheduler(DataScheduler):
         -------
 
         '''
+        DataScheduler.generateSamples(self)
 
         while True:
             data = self.getData()
