@@ -19,6 +19,13 @@ class DataSource(baseClass):
         '''
         baseClass.__init__(self, name = name)
 
+    def prepare(self):
+        '''
+        should open file handlers and get ready to provide data
+        should be called exactly at the process that will be accessing the data
+        '''
+        raise NotImplementedError
+
     def getNext(self):
         '''
 

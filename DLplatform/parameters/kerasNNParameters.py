@@ -1,7 +1,6 @@
 from DLplatform.parameters import Parameters
 
 import numpy as np
-from typing import List
     
 class KerasNNParameters(Parameters):
     '''
@@ -26,6 +25,9 @@ class KerasNNParameters(Parameters):
 
         '''
         self.weights = weights
+        self.shapes = []
+        for arr in self.weights:
+            self.shapes.append(arr.shape)
 
     def set(self, weights: list):
         '''
@@ -53,6 +55,10 @@ class KerasNNParameters(Parameters):
                     raise ValueError("Weights for KerasNNParameters should be given as list of numpy arrays. Instead, one element of list is of type " + str(type(arr)))
         
         self.weights = weights
+        self.shapes = []
+        for arr in self.weights:
+            self.shapes.append(arr.shape)
+
         # to use it inline
         return self
 
@@ -183,3 +189,38 @@ class KerasNNParameters(Parameters):
             newWeights.append(arr.copy())
         newParams = KerasNNParameters(newWeights)
         return newParams
+
+    def toVector(self)->np.array:
+        '''
+
+        Implementations of this method returns the current model parameters as a 1D numpy array.
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+        '''
+        return self.flatten()
+
+    def fromVector(self, v:np.array):
+        '''
+
+        Implementations of this method sets the current model parameters to the values given in the 1D numpy array v.
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+        '''
+        currPos = 0
+        newWeights = []
+        for s in self.shapes: #shapes contains the shapes of all weight matrices in the model
+            n = np.prod(s) #the number of elements n the curent weight matrix
+            arr = v[currPos:currPos+n].reshape(s)
+            newWeights.append(arr.copy())
+            currPos = n
+        self.set(newWeights)

@@ -1,7 +1,6 @@
 from DLplatform.parameters import Parameters
 
 import numpy as np
-from typing import List
 from _collections import OrderedDict
     
 class PyTorchNNParameters(Parameters):
@@ -27,6 +26,10 @@ class PyTorchNNParameters(Parameters):
 
         '''
         self._state = stateDict
+        self._shapes = OrderedDict()
+        for k in self._state:
+            arr = self._state[k]
+            self._shapes[k] = arr.shape
 
     def set(self, stateDict: dict):
         '''
@@ -48,9 +51,13 @@ class PyTorchNNParameters(Parameters):
 
         '''
         if not isinstance(stateDict, dict):
-            raise ValueError("Weights for PyTorchNNParameters should be given as python dictionary. Instead, the type given is " + str(type(weights)))
+            raise ValueError("Weights for PyTorchNNParameters should be given as python dictionary. Instead, the type given is " + str(type(stateDict)))
             
         self._state = stateDict
+        self._shapes = OrderedDict()
+        for k in self._state:
+            self._shapes[k] = self._state[k].shape
+
         # to use it inline
         return self
 
@@ -184,3 +191,40 @@ class PyTorchNNParameters(Parameters):
             newState[k] = self._state[k].copy()
         newParams = PyTorchNNParameters(newState)
         return newParams
+
+    def toVector(self)->np.array:
+        '''
+
+        Implementations of this method returns the current model parameters as a 1D numpy array.
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+        '''
+
+        return self.flatten()
+
+    def fromVector(self, v:np.array):
+        '''
+
+        Implementations of this method sets the current model parameters to the values given in the 1D numpy array v.
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+        '''
+        currPos = 0
+        newState = OrderedDict()
+        for k in self._shapes: #shapes contains the shapes of all weight matrices in the model and all the additional parameters, e.g., batch norm
+            s = self._shapes[k]
+            n = np.prod(s) #the number of elements n the curent weight matrix
+            arr = v[currPos:currPos+n].reshape(s)
+            newState[k] = arr.copy()
+            currPos = n
+        self.set(newState)

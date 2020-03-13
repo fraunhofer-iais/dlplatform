@@ -2,6 +2,7 @@ from DLplatform.aggregating import Aggregator
 
 from DLplatform.parameters import Parameters
 from typing import List
+import numpy as np
 
 class Average(Aggregator):
     '''
@@ -16,6 +17,12 @@ class Average(Aggregator):
         None
         '''
         Aggregator.__init__(self, name = name)
+
+    def calculateDivergence(self, param1, param2):
+        if type(param1) is np.ndarray:
+            return np.linalg.norm(param1 - param2)**2
+        else:
+            return param1.distance(param2)**2
 
     def __call__(self, params : List[Parameters]) -> Parameters:
         '''

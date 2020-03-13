@@ -26,6 +26,7 @@ class Learner(baseClass):
         self._isTraining                = False
         self._learningLogger            = None
         self._communicator              = None
+        self._synchronizer              = None
         
     def setIdentifier(self, identifier):
         '''
@@ -156,6 +157,9 @@ class Learner(baseClass):
     
     def setStoppingCriterion(self, stoppingCriterion):
         self._stoppingCriterion = stoppingCriterion
+
+    def setSynchronizer(self, synchronizer):
+        self._synchronizer = synchronizer
         
     def requestInitialModel(self):
         '''
@@ -248,7 +252,7 @@ class IncrementalLearner(Learner):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, batchSize : int, syncPeriod : int, delta : float, name = "IncrementalLearner", identifier = ""):
+    def __init__(self, batchSize : int, syncPeriod : int, name = "IncrementalLearner", identifier = ""):
         '''
         Initialize all the parameters with initial values and base class with name IncrementalLearner
 
@@ -258,9 +262,6 @@ class IncrementalLearner(Learner):
         syncPeriod - defines the periodicity of local condition checking. For periodic synchronization it means that 
             every syncPeriod examples synchronization will be performed. For dynamic synchronization it means that
             every syncPeriod examples local divergence will be checked.
-        delta - parameter for checking local condition, defines maximal possible distance between reference model and 
-            current state of the model. If delta is set to None it means that localCondition will check only amount of
-            examples seen, i.e. it is periodic synchronization case
         identifier - can be set from initializer, but generally set from the setter. It is equal to the identifier of the
             Worker that contains this IncrementalLearner
 
@@ -273,7 +274,6 @@ class IncrementalLearner(Learner):
         Learner.__init__(self, name, identifier)
         self._batchSize                 = batchSize
         self._syncPeriod                = syncPeriod
-        self._delta                     = delta
         
 
         self._referenceModel            = None
@@ -317,9 +317,9 @@ class IncrementalLearner(Learner):
             # second element of metrics is an array with predictions
             self._learningLogger.logPredictionsLabels(metrics[1], [t[1] for t in currentBatch])
             #self.info('STARTTIME_checkLocalCondition: '+str(time.time()))
-            curDist, localConditionHolds = self.checkLocalConditionHolds()
+            localEvaluateMsg, localConditionHolds = self.checkLocalConditionHolds()
             #self.info('ENDTIME_checkLocalCondition: '+str(time.time()))
-            self._learningLogger.logViolation(curDist, self._delta, localConditionHolds)
+            self._learningLogger.logViolation(localEvaluateMsg, localConditionHolds)
             if not self._stoppingCriterion is None and self._stoppingCriterion(self._seenExamples, time.time()):
                 self.stopExecution()
             if not localConditionHolds:

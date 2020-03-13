@@ -48,3 +48,9 @@ class VectorParameter(Parameters):
     
     def getCopy(self) -> np.ndarray:
         return VectorParameter(self._weights.copy())
+
+    def toVector(self):
+        return self.get()
+    
+    def fromVector(self, v):
+        self._weights = v.copy().flatten()

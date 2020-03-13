@@ -22,7 +22,7 @@ class DataScheduler(baseClass, Process):
     def __init__(self, name = "DataScheduler"):
         '''
         Initialize a parent class with name DataScheduler.
-        Initialize a Process for method self.generateSample.
+        Initialize a Process for method self.generateSamples.
 
         Returns
         -------
@@ -31,7 +31,7 @@ class DataScheduler(baseClass, Process):
         '''
 
         baseClass.__init__(self, name = name)
-        Process.__init__(self, target = self.generateSample)
+        Process.__init__(self, target = self.generateSamples)
 
         self._dataSource            = None
 
@@ -57,14 +57,15 @@ class DataScheduler(baseClass, Process):
             
         return self._dataSource.getNext()
 
-    def generateSample(self):
+    def generateSamples(self):
         '''
         Main method that runs in an endless loop generating examples for training.
         Should be implemented in a particular DataScheduler.
 
         '''
 
-        raise NotImplementedError
+        self._dataSource.prepare()
+        
 
     def setConnections(self,
                        workerConnection): #   : Connection):

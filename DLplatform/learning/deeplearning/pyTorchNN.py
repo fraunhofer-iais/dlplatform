@@ -9,8 +9,8 @@ import torch.optim as optim
 from collections import OrderedDict
 
 class PyTorchNN(IncrementalLearner):
-    def __init__(self, batchSize, syncPeriod, delta, mode, device, name = "PyTorchNN"):
-        IncrementalLearner.__init__(self, batchSize = batchSize, syncPeriod = syncPeriod, delta = delta, name = name)
+    def __init__(self, batchSize, syncPeriod, mode, device, name = "PyTorchNN"):
+        IncrementalLearner.__init__(self, batchSize = batchSize, syncPeriod = syncPeriod, name = name)
 
         self._core          		= None
         self._flattenReferenceParams    = None
@@ -43,17 +43,12 @@ class PyTorchNN(IncrementalLearner):
         bool
         '''
         localConditionHolds = True
-        currentDivergence = None
         self._syncCounter += 1
         if self._syncCounter == self._syncPeriod:
-            if not self._delta is None:
-                currentDivergence = self.calculateCurrentDivergence()
-                localConditionHolds = currentDivergence <= self._delta
-            else:
-                localConditionHolds = False
+            msg, localConditionHolds = self._synchronizer.evaluateLocal(self._flattenParameters(self.getParameters()), self._flattenReferenceParams)
             self._syncCounter = 0
 
-        return currentDivergence, localConditionHolds
+        return msg, localConditionHolds
 
     def update(self, data: List) -> List:
         '''
@@ -150,12 +145,9 @@ class PyTorchNN(IncrementalLearner):
             state_dict[k] = v.data.cpu().numpy()
         return PyTorchNNParameters(state_dict)
 
-    def calculateCurrentDivergence(self):
-        flattenCoreParams = self._flattenParameters(self.getParameters())
-        return np.linalg.norm(flattenCoreParams - self._flattenReferenceParams)
-
     def _flattenParameters(self, param):
         flatParam = []
         for k,v in param.get().items():
             flatParam += np.ravel(v).tolist()
         return np.asarray(flatParam)
+

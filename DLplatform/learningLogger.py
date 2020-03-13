@@ -75,14 +75,13 @@ class LearningLogger():
                     output.write('%.3f\t%s\t%s\n' % (time.time(),
                         ','.join(map(str, predictions[i])), ','.join(map(str, labels[i]))))
 
-    def logViolation(self, distance: float, delta: float, localConditionHolds: bool):
+    def logViolation(self, localConditionMsg: str, localConditionHolds: bool):
         '''
-        Logs violations along with violation distance and delta for dynamic synchronization
+        Logs violations along with local condition message
 
         Parameters
         ----------
-        distance
-        delta
+        localConditionMsg
         localConditionHolds - defines if violation is observed, opposite value is logged
             for intuitive understandability of the logs
             if log level is DEBUG all the checks are written
@@ -91,10 +90,7 @@ class LearningLogger():
         logFilePath = os.path.join(self._logpath, self._learnerViolationsFile)
         with open(logFilePath, 'a') as output:
             if self._logLevel == 'DEBUG' or not localConditionHolds:
-                if delta is None:
-                    output.write('%.3f\t%i\n' % (time.time(), not localConditionHolds))
-                else:
-                    output.write('%.3f\t%i\t%s\t%4.f\n' % (time.time(), not localConditionHolds, str(distance), delta))
+                output.write('%.3f\t%i\t%s\n' % (time.time(), not localConditionHolds, localConditionMsg))
 
     def logBalancing(self, flags: dict, violationNodes: list, balancingSet: list):
         '''
