@@ -50,7 +50,7 @@ class GeometricMedian(Aggregator):
         y = np.mean(X, 0)
         iterCount = 0
         
-        while iter <= mat_iter:
+        while iterCount <= mat_iter:
             D = cdist(X, [y])
             nonzeros = (D != 0)[:, 0]
     

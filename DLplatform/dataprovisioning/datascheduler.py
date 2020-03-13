@@ -65,7 +65,7 @@ class DataScheduler(baseClass, Process):
         '''
 
         self._dataSource.prepare()
-        pass
+        
 
     def setConnections(self,
                        workerConnection): #   : Connection):
