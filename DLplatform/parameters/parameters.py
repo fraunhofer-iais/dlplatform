@@ -1,3 +1,4 @@
+import numpy
 
 class Parameters:
     '''
@@ -103,6 +104,36 @@ class Parameters:
         '''
 
         Implementations of this method return a copy of the current model parameters.
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+        '''
+         
+        raise NotImplementedError
+    
+    def toVector(self) -> numpy.array:
+        '''
+
+        Implementations of this method returns the current model parameters as a 1D numpy array.
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+        '''
+         
+        raise NotImplementedError
+    
+    def fromVector(self, v : numpy.array):
+        '''
+
+        Implementations of this method sets the current model parameters to the values given in the 1D numpy array v.
 
         Parameters
         ----------

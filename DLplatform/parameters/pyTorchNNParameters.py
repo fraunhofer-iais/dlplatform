@@ -1,7 +1,6 @@
 from DLplatform.parameters import Parameters
 
 import numpy as np
-from typing import List
 from _collections import OrderedDict
     
 class PyTorchNNParameters(Parameters):
@@ -27,6 +26,7 @@ class PyTorchNNParameters(Parameters):
 
         '''
         self._state = stateDict
+        self.shapes = {}
 
     def set(self, stateDict: dict):
         '''
@@ -48,7 +48,7 @@ class PyTorchNNParameters(Parameters):
 
         '''
         if not isinstance(stateDict, dict):
-            raise ValueError("Weights for PyTorchNNParameters should be given as python dictionary. Instead, the type given is " + str(type(weights)))
+            raise ValueError("Weights for PyTorchNNParameters should be given as python dictionary. Instead, the type given is " + str(type(stateDict)))
             
         self._state = stateDict
         # to use it inline
@@ -185,6 +185,41 @@ class PyTorchNNParameters(Parameters):
         newParams = PyTorchNNParameters(newState)
         return newParams
 
-    def setToGeometricMedian(self, params : List):
-        print("Should be calculating GM")
-        return
+    def toVector(self)->np.array:
+        '''
+
+        Implementations of this method returns the current model parameters as a 1D numpy array.
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+        '''
+        for k in self._state:        
+            arr = self._state[k]
+            self.shapes[k] = arr.shape
+        return self.flatten()
+
+    def fromVector(self, v:np.array):
+        '''
+
+        Implementations of this method sets the current model parameters to the values given in the 1D numpy array v.
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+        '''
+        currPos = 0
+        newState = {}
+        for k in self.shapes: #shapes contains the shapes of all weight matrices in the model
+            s = self.shapes[k]
+            n = np.prod(s) #the number of elements n the curent weight matrix
+            arr = v[currPos:n].reshape(s)
+            newState[k](arr.copy())
+            currPos = n
+        self.set(newState)

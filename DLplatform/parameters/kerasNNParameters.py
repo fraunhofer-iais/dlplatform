@@ -1,8 +1,6 @@
 from DLplatform.parameters import Parameters
 
 import numpy as np
-from typing import List
-#import hdmedians as hd
     
 class KerasNNParameters(Parameters):
     '''
@@ -27,6 +25,7 @@ class KerasNNParameters(Parameters):
 
         '''
         self.weights = weights
+        self.shapes = []
 
     def set(self, weights: list):
         '''
@@ -185,49 +184,39 @@ class KerasNNParameters(Parameters):
         newParams = KerasNNParameters(newWeights)
         return newParams
 
-    def setToGeometricMedian(self, params : List):
-        models = params
+    def toVector(self)->np.array:
+        '''
 
-        shapes = []
-        b = []
-        once = True
-        newWeightsList = []
-        try:
-            for i, model in enumerate(models):
-                w2 = model.get()
-                c = []
-                c = np.array(c)
-                for i in range(len(w2)):
-                    z = np.array(w2[i])
+        Implementations of this method returns the current model parameters as a 1D numpy array.
 
-                    if len(shapes) < 8:
-                        shapes.append(z.shape)
-                    d = np.array(w2[i].flatten()).squeeze()
-                    c = np.concatenate([c, d])
-                if (once):
-                    b = np.zeros_like(c)
-                    b[:] = c[:]
-                    once = False
-                else:
-                    once = False
-            b = np.concatenate([b.reshape((-1, 1)), c.reshape((-1, 1))], axis=1)
-            median_val = np.array(b[0]) #hd.geomedian(b))
-            sizes = []
-            for j in shapes:
-                size = 1
-                for k in j:
-                    size *= k
-                sizes.append(size)
-            newWeightsList = []
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+        '''
+        for arr in self.weights:            
+            self.shapes.append(arr.shape)
+        return self.flatten()
 
-            chunks = []
-            count = 0
-            for size in sizes:
-                chunks.append([median_val[i + count] for i in range(size)])
-                count += size
-            for chunk, i in zip(chunks, range(len(shapes))):
-                newWeightsList.append(np.array(chunk).reshape(shapes[i]))
+    def fromVector(self, v:np.array):
+        '''
 
-        except Exception as e:
-            print("Error happened! Message is ", e)
-        self.set(newWeightsList)
+        Implementations of this method sets the current model parameters to the values given in the 1D numpy array v.
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+        '''
+        currPos = 0
+        newWeights = []
+        for s in self.shapes: #shapes contains the shapes of all weight matrices in the model
+            n = np.prod(s) #the number of elements n the curent weight matrix
+            arr = v[currPos:n].reshape(s)
+            newWeights.append(arr.copy())
+            currPos = n
+        self.set(newWeights)
