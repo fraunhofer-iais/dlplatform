@@ -20,7 +20,10 @@ class GeometricMedian(Aggregator):
         Aggregator.__init__(self, name=name)
 
     def calculateDivergence(self, param1, param2):
-        return np.linalg.norm(param1 - param2)
+        if type(param1) is np.ndarray:
+            return np.linalg.norm(param1 - param2)
+        else:
+            return param1.distance(param2)
 
     def __call__(self, params: List[Parameters]) -> Parameters:
         '''

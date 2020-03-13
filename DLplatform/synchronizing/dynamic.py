@@ -169,7 +169,7 @@ class DynamicHedgeSync(DynamicSync):
             if self._refPoint is None:
                 dist = self._delta + 1.0 #if refpoint is None (at initialization), the distance is set to ensure a violation
             else:
-                dist = newModel.distance(self._refPoint)
+                dist = self._aggregator.calculateDivergence(newModel, self._refPoint)
             if dist <= self._delta:
                 # updating only active nodes
                 updateNodes = list(set(list(nodesDict.keys())).intersection(set(activeNodes)))
