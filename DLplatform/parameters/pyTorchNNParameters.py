@@ -26,7 +26,10 @@ class PyTorchNNParameters(Parameters):
 
         '''
         self._state = stateDict
-        self.shapes = {}
+        self._shapes = OrderedDict()
+        for k in self._state:
+            arr = self._state[k]
+            self._shapes[k] = arr.shape
 
     def set(self, stateDict: dict):
         '''
@@ -51,6 +54,10 @@ class PyTorchNNParameters(Parameters):
             raise ValueError("Weights for PyTorchNNParameters should be given as python dictionary. Instead, the type given is " + str(type(stateDict)))
             
         self._state = stateDict
+        self._shapes = OrderedDict()
+        for k in self._state:
+            self._shapes[k] = self._state[k].shape
+
         # to use it inline
         return self
 
@@ -197,9 +204,7 @@ class PyTorchNNParameters(Parameters):
         -------
         
         '''
-        for k in self._state:        
-            arr = self._state[k]
-            self.shapes[k] = arr.shape
+
         return self.flatten()
 
     def fromVector(self, v:np.array):
@@ -215,11 +220,11 @@ class PyTorchNNParameters(Parameters):
         
         '''
         currPos = 0
-        newState = {}
-        for k in self.shapes: #shapes contains the shapes of all weight matrices in the model
-            s = self.shapes[k]
+        newState = OrderedDict()
+        for k in self._shapes: #shapes contains the shapes of all weight matrices in the model and all the additional parameters, e.g., batch norm
+            s = self._shapes[k]
             n = np.prod(s) #the number of elements n the curent weight matrix
-            arr = v[currPos:n].reshape(s)
-            newState[k](arr.copy())
+            arr = v[currPos:currPos+n].reshape(s)
+            newState[k] = arr.copy()
             currPos = n
         self.set(newState)
