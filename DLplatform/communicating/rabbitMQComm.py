@@ -87,7 +87,7 @@ class RabbitMQComm(Communicator):
         if '_publishConnection' in d and d['_publishConnection'] == "reconnect_required":            
             credentials = pika.PlainCredentials(d['_user'], d['_password'])
             d['_publishConnection'] = pika.BlockingConnection(pika.ConnectionParameters(host = d['_hostname'], port = d['_port'], 
-                                        credentials = credentials, blocked_connection_timeout = None, socket_timeout = None, heartbeat = None))
+                                        credentials = credentials, blocked_connection_timeout = None, socket_timeout = None, heartbeat = 0))
             d['_publishChannel'] = d['_publishConnection'].channel()
             d['_publishChannel'].exchange_declare(exchange=d['_exchangeCoordinator'], exchange_type='topic')
             d['_publishChannel'].exchange_declare(exchange=d['_exchangeNodes'], exchange_type='topic')
@@ -327,7 +327,7 @@ class RabbitMQComm(Communicator):
 
         credentials = pika.PlainCredentials(self._user, self._password)
         return pika.BlockingConnection(pika.ConnectionParameters(host = self._hostname, 
-            port = self._port, credentials = credentials, blocked_connection_timeout = None, socket_timeout = None, heartbeat = None))
+            port = self._port, credentials = credentials, blocked_connection_timeout = None, socket_timeout = None, heartbeat = 0))
 
     def setPort(self, port: int) :
         '''
