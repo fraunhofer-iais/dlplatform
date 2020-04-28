@@ -26,4 +26,5 @@ termcolor==1.1.0
 torch==1.1.0
 werkzeug==0.15.4
 wrapt==1.11.2
+Pillow
 
