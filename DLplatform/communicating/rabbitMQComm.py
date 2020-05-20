@@ -2,20 +2,18 @@ from DLplatform.parameters import Parameters
 from DLplatform.communicating import Communicator
 
 from typing import List
-from threading import Thread
-from multiprocessing import Process
 import pika
 import pickle
 import sys
+import threading
 
 class RabbitMQComm(Communicator):
     '''
     Class incapsulating all the methods for sending
-    and receiveing messages in the distributed system
+    and receiving messages in the distributed system
     The only connection to the communication server (RabbitMQ) is 
     hold here.
-    '''
-    '''
+
     best practices for RabbitMQ https://www.cloudamqp.com/blog/2017-12-29-part1-rabbitmq-best-practice.html
     main rules:
         - one connection per process, one channel per thread
@@ -50,16 +48,45 @@ class RabbitMQComm(Communicator):
         self._hostname                  = hostname # 'localhost' as the simplest
         self._user                      = user
         self._password                  = password
-        # @TODO: check if connection will be closed automatically when process is shut down
-        #self._uniqueId                  = uniqueId
+        # we use uniqueId in order to allow running several experiments on one and the same
+        # rabbitMQ instance - the messages would not be mixed up then, because channels
+        # have this uniqueId, that is the PID of the experiment process
         self._exchangeCoordinator       = 'coordinator' + uniqueId
         self._exchangeNodes             = 'nodes' + uniqueId
+        self._threads                   = []
         self._setupPublishConnection()
+
+    '''
+    When using multiprocessing, the communicator is serialized using pickle (in windows, not so under linux). 
+    However, the connection cannot be pickled, since it contains a thread.lock object.
+    To avoid this, we implemented the following two functions which govern the behavior of pickle.
+    In here, the connection object is disregarded and reopened in the child process, later.
+    '''
+
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        if '_publishConnection' in d:
+            d['_publishConnection'] = "reconnect_required"
+        if '_publishChannel' in d:
+            d['_publishChannel'] = "reconnect_required"
+        return d
+
+    def __setstate__(self, d):
+        if '_publishConnection' in d and d['_publishConnection'] == "reconnect_required":
+            credentials = pika.PlainCredentials(d['_user'], d['_password'])
+            d['_publishConnection'] = pika.BlockingConnection(pika.ConnectionParameters(host=d['_hostname'],
+                                        port=d['_port'], credentials=credentials, blocked_connection_timeout=None,
+                                        socket_timeout=None, heartbeat=0))
+            d['_publishChannel'] = d['_publishConnection'].channel()
+            d['_publishChannel'].exchange_declare(exchange=d['_exchangeCoordinator'], exchange_type='topic')
+            d['_publishChannel'].exchange_declare(exchange=d['_exchangeNodes'], exchange_type='topic')
+        self.__dict__.update(d)
 
     def initiate(self, exchange : str, topics : List[str]):
         '''
-        Initializes the consuming thread
-        Exchange and topics to listen to are set up
+        Sets the needed exchange name and topics to listen to.
+        For worker it is Nodes exchange and topics with its id
+        For coordinator it is Coordinator exchange and topics such as "registration"
 
         Parameters
         ----------
@@ -68,46 +95,67 @@ class RabbitMQComm(Communicator):
         '''
         self._exchange = exchange
         self._topics = topics
-    
-    '''
-    When using multiprocessing, the communicator is serialized using pickle (in windows, not so under linux). 
-    However, the connection cannot be pickled, since it contains a thread.lock object.
-    To avoid this, we implemented the following two functions which govern the behavior of pickle.
-    In here, the connection object is disregarded and reopened in the child process, later.
-    '''
-    def __getstate__(self):
-        d = self.__dict__.copy()
-        if '_publishConnection' in d:
-            d['_publishConnection'] = "reconnect_required"
-        if '_publishChannel' in d:
-            d['_publishChannel'] = "reconnect_required"
-        return d
-    
-    def __setstate__(self, d):
-        if '_publishConnection' in d and d['_publishConnection'] == "reconnect_required":            
-            credentials = pika.PlainCredentials(d['_user'], d['_password'])
-            d['_publishConnection'] = pika.BlockingConnection(pika.ConnectionParameters(host = d['_hostname'], port = d['_port'], 
-                                        credentials = credentials, blocked_connection_timeout = None, socket_timeout = None, heartbeat = None))
-            d['_publishChannel'] = d['_publishConnection'].channel()
-            d['_publishChannel'].exchange_declare(exchange=d['_exchangeCoordinator'], exchange_type='topic')
-            d['_publishChannel'].exchange_declare(exchange=d['_exchangeNodes'], exchange_type='topic')
-        self.__dict__.update(d)
-    
+
+    def connect(self) -> pika.BlockingConnection:
+        '''
+        Performs connection to the communication server
+        All the parameters of a server are set up in the initializer.
+
+        Returns
+        -------
+        connection to the server
+        '''
+
+        credentials = pika.PlainCredentials(self._user, self._password)
+        return pika.BlockingConnection(pika.ConnectionParameters(host = self._hostname,
+                    port = self._port, credentials = credentials, blocked_connection_timeout = None,
+                    socket_timeout = None, heartbeat = 0))
+
     def _setupPublishConnection(self):
+        '''
+        Creates a connection to RabbitMQ server for publishing
+        Declares to exchanges: for Nodes and Coordinator, each instance of communicator
+        will know, which of the exchanges should be used for publishing
+        '''
         self._publishConnection         = self.connect()
         self._publishChannel            = self._publishConnection.channel()
 
         self._publishChannel.exchange_declare(exchange=self._exchangeCoordinator, exchange_type='topic')
         self._publishChannel.exchange_declare(exchange=self._exchangeNodes, exchange_type='topic')
 
+    def _setupConsumeConnection(self):
+        '''
+        Setups a separate connection to RabbitMQ server for consumption of messages.
+        Each instance of communicator consumes only from the needed exchange and only needed topics
+        So workers would only consume from Nodes exchange topics that have their id
+        Coordinator will consume only topics "violation", "registration", etc. from Coordinator exchange
+        When message is received it is directly pushed into interProcess communication (via _onMessageReceived) and
+        acknowledgement sent automatically, so RabbitMQ is never stuck waiting for response
+        '''
+        self._consumeConnection = self.connect()
+        channel = self._consumeConnection.channel()
+        queue = channel.queue_declare(exclusive=True, queue='').method.queue
+
+        for topic in self._topics:
+            channel.queue_bind(exchange=self._exchange, queue=queue, routing_key=topic)
+
+        # does not allow to stack more than 1 message in prefetch, helps to make the communication lighter
+        channel.basic_qos(prefetch_count=1)
+        channel.basic_consume(on_message_callback=self._onMessageReceived, queue=queue, auto_ack=True)
+        return channel
+
     def _publish(self, exchange, topic, message):
+        '''
+        Publishes a message to the exchange (Nodes for workers and Coordinator for coordinator) with
+        a needed topic, e.g., "violation" or "newModel.0.1"
+        '''
         try:
-            self._publishChannel.basic_publish(exchange=exchange,
-                routing_key=topic, body=message)
+            self._publishChannel.basic_publish(exchange=exchange, routing_key=topic, body=message)
         except pika.exceptions.ConnectionClosed:
+            # should actually never happen if everything is working smoothly
+            print("Pika connection to RabbitMQ server was closed!")
             self._setupPublishConnection()
-            self._publishChannel.basic_publish(exchange=exchange,
-                routing_key=topic, body=message)
+            self._publishChannel.basic_publish(exchange=exchange, routing_key=topic, body=message)
 
     def sendViolation(self, identifier : str, param : Parameters):
         '''
@@ -140,7 +188,6 @@ class RabbitMQComm(Communicator):
             error_text = "The argument param is not of type" + str(Parameters) + "it is of type " + str(type(param))
             self.error(error_text)
             raise ValueError(error_text)
-
 
         message = pickle.dumps({'id' : identifier, 'param' : param})
         message_size = sys.getsizeof(message)
@@ -182,6 +229,10 @@ class RabbitMQComm(Communicator):
         self.learningLogger.logRegistrationMessage(self._exchangeCoordinator, topic, identifier, message_size, 'send')
 
     def sendDeregistration(self, identifier : str, param : Parameters):
+        '''
+        When a node finished according to the stopping criterion,
+        it send the deregistration message to coordinator
+        '''
         if not isinstance(identifier, str):
             error_text = "The argument identifier is not of type 'string' it is of type " + str(type(identifier))
             self.error(error_text)
@@ -315,20 +366,6 @@ class RabbitMQComm(Communicator):
         self._publish(self._exchangeNodes, topic, message)
         self.learningLogger.logSendModelMessage(self._exchangeNodes, topic, message_size, 'send')
 
-    def connect(self) -> bool:
-        '''
-        Performs connection to the communication server
-        All the parameters of a server are set up in the initializer.
-
-        Returns
-        -------
-        connection to the server
-        '''
-
-        credentials = pika.PlainCredentials(self._user, self._password)
-        return pika.BlockingConnection(pika.ConnectionParameters(host = self._hostname, 
-            port = self._port, credentials = credentials, blocked_connection_timeout = None, socket_timeout = None, heartbeat = None))
-
     def setPort(self, port: int) :
         '''
         Setter for the port of the communication server
@@ -401,24 +438,13 @@ class RabbitMQComm(Communicator):
 
         return self._hostname
 
-    def _setupConsumeConnection(self):
-        consumerConnection = self.connect()
-        channel = consumerConnection.channel()
-        queue = channel.queue_declare(exclusive=True, queue='').method.queue
-
-        for topic in self._topics:
-            channel.queue_bind(exchange=self._exchange, queue=queue, routing_key=topic)
-
-        channel.basic_consume(on_message_callback=self._onMessageReceived, queue=queue, auto_ack=True)
-        return channel
-
     def run(self):
         '''
         Method that is run as target of the thread with communicator
         Opens a connection to the communication server and starts an 
         endless loop that is consuming the queue of messages. The callback 
         is the onMessageReceived that is set up before. Subscription is made 
-        on particular schedular and particular topics.
+        on particular exchange and particular topics.
 
         Returns
         -------
@@ -426,14 +452,17 @@ class RabbitMQComm(Communicator):
 
         '''
 
-        # retrieving messages from other processes
+        # run Process parent class
         super().run()
 
-        # @TODO: check if this connection is closed on shutdown of the thread/process
         channel = self._setupConsumeConnection()
         try:
             channel.start_consuming()
         except pika.exceptions.ConnectionClosed:
-            channel = self._setupConsumeConnection()
-            channel.start_consuming()
+            # should actually never happen if everything is working smoothly
+            print("Pika connection to RabbitMQ server was closed!")
+        except KeyboardInterrupt:
+            channel.stop_consuming()
 
+        self._publishConnection.close()
+        self._consumeConnection.close()
