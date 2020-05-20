@@ -7,7 +7,6 @@ Please import anaconda environment with dlplatform_env.yml file or use the follo
     - enum34==1.1.6
     - gast==0.2.2
     - google-pasta==0.1.7
-    - graphkernels==0.2.1
     - grpcio==1.21.1
     - h5py==2.9.0
     - html5lib==0.9999999
@@ -30,6 +29,7 @@ Please import anaconda environment with dlplatform_env.yml file or use the follo
     - torch==1.1.0
     - werkzeug==0.15.4
     - wrapt==1.11.2
+    - Pillow
 
 With python==3.5.2, Anaconda 4.2.0, and cuda-8.0, cudnn5.1 for gpu users.
 
