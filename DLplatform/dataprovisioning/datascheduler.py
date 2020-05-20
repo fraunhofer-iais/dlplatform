@@ -2,10 +2,8 @@ from DLplatform.baseClass import baseClass
 from DLplatform.dataprovisioning import DataSource
 
 from abc import ABCMeta
-from multiprocessing import Process #, Connection
+from multiprocessing import Process
 from pickle import dumps
-import time
-import numpy as np
 
 class DataScheduler(baseClass, Process):
     '''
@@ -61,17 +59,17 @@ class DataScheduler(baseClass, Process):
         '''
         Main method that runs in an endless loop generating examples for training.
         Should be implemented in a particular DataScheduler.
-
+        Calls method for the dataSource to be prepared, i.e., open the files for
+        reading and cache them if it is pointed in options
         '''
 
         self._dataSource.prepare()
-        
 
-    def setConnections(self,
-                       workerConnection): #   : Connection):
+    def setConnection(self, workerConnection):
         '''
-
-        Setter for the connections to worker and from learner
+        Setter for the connection to worker in order
+        to pass examples from the process of dataScheduler
+        to the process of worker.
 
         Parameters
         ----------
@@ -79,15 +77,15 @@ class DataScheduler(baseClass, Process):
             the transmitter connection of a simplex pipe between the DataScheduler and the worker
         '''
 
-        self._workerConnection    = workerConnection
+        self._workerConnection = workerConnection
 
-    def sendDataUpdate(self,data):
+    def sendDataUpdate(self, data):
         '''
 
         Parameters
         ----------
         data
-            the data to be send to the worker. It is most likely a numpy array or a tuple of numpy arrays
+            the data to be send to the worker. It is most likely a tuple of numpy arrays
         Returns
         -------
         None
@@ -100,14 +98,13 @@ class DataScheduler(baseClass, Process):
             self.error("No workerConnection is set")
             raise AttributeError("No workerConnection is set")
 
-        # Preparing the msg send via pipe (should be smaller than 30 MiB
+        # preparing the msg send via pipe (should be smaller than 30 MiB according to Pipe documentation)
         msg = dumps(data)
-        # sending the msg
         self._workerConnection.send(msg)
 
     def setDataSource(self, source : DataSource):
         '''
-        Setter for DataSource
+        Setter for DataSource, the object that has the data examples themselves
 
         Parameters
         ----------
@@ -124,7 +121,7 @@ class DataScheduler(baseClass, Process):
         '''
 
         if not isinstance(source,DataSource):
-            error_text = "The attribute datascheduler is of type " + str(type(source)) + " and not of type" + str(DataSource)
+            error_text = "The attribute source is of type " + str(type(source)) + " and not of type" + str(DataSource)
             self.error(error_text)
             raise ValueError(error_text)
 
@@ -144,10 +141,11 @@ class DataScheduler(baseClass, Process):
 
     def start(self):
         '''
-        implementation of the start function of process parent class
+        Starts process of the dataScheduler, that is an endless loop of providing data
+        examples and pushing them to the pipe connected to the worker
         '''
 
-        super().start()
-
         if (self._workerConnection == None):
-            raise AttributeError("workerConnection wasn't set properly for the dataScheduler!")
+            raise AttributeError("workerConnection wasn't set for the dataScheduler!")
+
+        super().start()
