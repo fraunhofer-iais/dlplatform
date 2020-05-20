@@ -1,15 +1,11 @@
 from DLplatform.baseClass import baseClass
 from DLplatform.parameters import Parameters
 from DLplatform.communicating import Communicator
-from DLplatform.communicating.communicator import SEND_AVERAGED_MODEL, SEND_BALANCING_REQUEST
 from DLplatform.synchronizing import Synchronizer
 
-from pickle import loads, dumps
-from multiprocessing import Pipe
-from typing import List, Dict
-import time
+from pickle import loads
+from multiprocessing import Queue
 import sys
-import numpy.random as rd
 
 '''
     The InitializationHandler defines, how the coordinator handles model parameters when new learners register. 
@@ -69,7 +65,8 @@ class NoisyInitHandler(InitializationHandler):
 class Coordinator(baseClass):
 
     '''
-    Provides the functionalities of the central coordinator which handles model synchronization and information exchange between workers
+    Provides the functionality of the central coordinator which handles model
+    synchronization and information exchange between workers
     '''    
     
     def __init__(self):
@@ -88,44 +85,21 @@ class Coordinator(baseClass):
 
         super().__init__(name = "Coordinator")
         
-        self._communicator      = None
-        self._synchronizer      = None
-        self._violations        = []
-        self._nodesInViolation  = []
-        self._balancingSet      = {}
-        self._activeNodes	= []
-        self._initHandler       = InitializationHandler()
-        self._learningLogger    = None
-        self._allNodes		= []
+        self._communicator              = None
+        self._synchronizer              = None
+        self._violations                = []
+        self._nodesInViolation          = []
+        self._balancingSet              = {}
+        self._activeNodes	            = []
+        self._initHandler               = InitializationHandler()
+        self._learningLogger            = None
+        self._allNodes		            = []
 
-        # initiallizing pipes for communication, in contrast to the worker, Coordinator can also send messages to
-        # the communicator
-        self._communicatorConnections = Pipe(duplex=True)
-
-        # for retrival at the worker
-        self._communicatorConnection = self._communicatorConnections[0]
+        # initializing queue for communication with communicator process
+        self._communicatorConnection    = Queue()
 
     def setLearningLogger(self, logger):
         self._learningLogger = logger
-
-    def onModelUpdate(self, param : Parameters, workerId : str):
-        '''
-
-        Parameters
-        ----------
-        param
-        workerId
-
-        Returns
-        -------
-
-        Exception
-        --------
-        ValueError
-            in case that param and workerId are not of type Parameters or/and str, respectively.
-        '''
-
-        raise NotImplementedError
 
     def setCommunicator(self, comm : Communicator):
         '''
@@ -168,9 +142,6 @@ class Coordinator(baseClass):
     def setInitHandler(self, initHandler : InitializationHandler):
         self._initHandler = initHandler
 
-    #def getInitialParams(self):
-    #    return self._initialParam
-
     def setSynchronizer(self, synOp : Synchronizer):
         '''
 
@@ -194,7 +165,7 @@ class Coordinator(baseClass):
 
         self._synchronizer = synOp
 
-    def getSynchronizer(self) -> Synchronizer :
+    def getSynchronizer(self) -> Synchronizer:
         '''
 
         Returns
@@ -205,25 +176,23 @@ class Coordinator(baseClass):
 
         return self._synchronizer
 
-    def retrieveMessages(self):
+    def checkInterProcessCommunication(self):
         '''
-        checks pipes for new in coming messages and acts in case that a messages arrived. Since messages arriving from
-        communicator are just those arriving at the communicator, we receive one type of message here.
+        Checks queue for new incoming messages and acts in case if a message has arrived
 
         Exceptions
         ----------
         ValueError
             in case that the received message doesn't fit with the expected type
         '''
-        if self._communicatorConnection.poll():
 
-            recvObj     = self._communicatorConnection.recv()
-            #recvObj = loads(recvObj)
+        if not self._communicatorConnection.empty():
+            recvObj = self._communicatorConnection.get()
 
             if not isinstance(recvObj,tuple):
-                raise ValueError("worder received recvObj is not a tuple")
+                raise ValueError("coordinator received recvObj that is not a tuple")
             elif not len(recvObj) == 3:
-                raise ValueError("worder received recvObj, which has length of  different from 3")
+                raise ValueError("coordinator received recvObj which has length different from 3")
 
             routing_key, exchange, body = recvObj
             self.onMessageReceived(routing_key, exchange, body)
@@ -231,8 +200,7 @@ class Coordinator(baseClass):
     def _setConnectionsToComponents(self):
         '''
 
-        distributes the transmitters and receiver connections over the different processes such that an inter process
-        communication can take place.
+        Gives communicator access to the queue such that an inter process communication can take place.
 
         Exceptions
         ----------
@@ -245,13 +213,10 @@ class Coordinator(baseClass):
             self.error("Communicator not set!")
             raise AttributeError("Communicator not set!")
 
-        # ToDo : bad style to set the leaner connection to the same as workerconnection, but it works! it should be
-        # replaced
-        self._communicator.setConnections   (workerConnection       = self._communicatorConnections[1])
+        self._communicator.setConnection(consumerConnection = self._communicatorConnection)
 
     def onMessageReceived(self, routing_key, exchange, body):
-        #self.info('STARTTIME_coordinator_onMessageReceived: '+str(time.time()))
-        message     = loads(body)
+        message = loads(body)
         message_size = sys.getsizeof(body)
         if routing_key == 'violation':
             self.info("Coordinator received a violation")
@@ -290,7 +255,6 @@ class Coordinator(baseClass):
             if len(self._activeNodes) == 0:
                 self.info("No active workers left, exiting.")
                 sys.exit()
-        #self.info('ENDTIME_coordinator_onMessageReceived: '+str(time.time()))
 
     def run(self):
         if self._communicator is None:
@@ -301,7 +265,8 @@ class Coordinator(baseClass):
             self.error("Synchronizing operator is not set!")
             raise AttributeError("Synchronizing operator is not set!")
 
-        self._communicator.initiate(exchange = self._communicator._exchangeCoordinator, topics = ['registration', 'deregistration', 'violation', 'balancing'])
+        self._communicator.initiate(exchange = self._communicator._exchangeCoordinator,
+                                    topics = ['registration', 'deregistration', 'violation', 'balancing'])
         self._communicator.daemon = True
 
         self._setConnectionsToComponents()
@@ -312,12 +277,11 @@ class Coordinator(baseClass):
             raise AttributeError("communicatorConnection was not set properly at the worker!")
 
         while True:
-            self.retrieveMessages()
+            self.checkInterProcessCommunication()
             # we have to enter this in two cases:
             # - we got a violation
             # - we did not get all the balancing models
             if len(self._violations) > 0 or len(self._balancingSet.keys()) != 0:
-                #self.info('STARTTIME_coordinator_run: '+str(time.time()))
                 if len(self._violations) > 0:
                     message = loads(self._violations[0])
                     nodeId = message['id']
@@ -348,6 +312,5 @@ class Coordinator(baseClass):
                         self._learningLogger.logAveragedModel(nodes, params, flags)
                     self._balancingSet.clear()
                     self._nodesInViolation = []
-                #self.info('ENDTIME_coordinator_run: '+str(time.time()))
 
         self._communicator.join()

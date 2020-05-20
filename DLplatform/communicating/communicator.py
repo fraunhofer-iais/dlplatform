@@ -4,33 +4,17 @@ from DLplatform.parameters import Parameters
 from typing import List
 from multiprocessing import Process
 from abc import ABCMeta
-#from multiprocessing import Connection
-from pickle import dumps, loads
-
-INITIAL_MODEL_REQUEST           = "INITIAL_MODEL"
-VIOLATION_OBTAINED              = "VIOLATION"
-ANSWER_TO_COORDINATOR_REQUEST   = "MODEL_REQUEST"
-SEND_BALANCING_REQUEST          = "BALANCING_REQUEST"
-SEND_AVERAGED_MODEL             = "AVERAGED_MODEL"
-
-class NoneConnection:
-    '''
-    Used to flag that no learner Pipe is available
-    '''
-    pass
 
 class Communicator(baseClass, Process):
     '''
     Abstract class for incapsulating all the methods for sending
-    and receiveing messages in the distributed system
+    and receiving messages in the distributed system
     '''
 
     __metaclass__ = ABCMeta
 
-    def __init__(self,
-                 name           = "Communicator"):
+    def __init__(self, name = "Communicator"):
         '''
-
         Initializes the BaseClass with name Communicator
 
         Parameters
@@ -41,14 +25,22 @@ class Communicator(baseClass, Process):
 
         Process.__init__(self)
         baseClass.__init__(self, name = name)
-        self._workerConnection  = None
-        self.learningLogger    = None
+
+        self._consumerConnection    = None
+        self.learningLogger         = None
 
     def setLearningLogger(self, learningLogger):
+        '''
+        Logger in order to keep track of all the messages sent through communicator
+        This is later used for measured communication effectiveness of the learning process
+        '''
         self.learningLogger = learningLogger
 
+    # the point where it is still to RabbitMQ oriented, should be much more high level
     def _onMessageReceived(self, ch, method, properties, body):
         '''
+        Pushes the consumed message from external communication into the interprocess
+        communication queue
 
         Parameters
         ----------
@@ -57,36 +49,26 @@ class Communicator(baseClass, Process):
         Returns
         -------
         None
-
         '''
 
         self.info("received message " + method.routing_key)
-
         routing_key = method.routing_key
         exchange = method.exchange
-
         msg = (routing_key, exchange, body)
-        #msg = dumps(msg)
+        self._consumerConnection.put(msg)
 
-        self._workerConnection.send(msg)
-
-    def setConnections(self,
-                       workerConnection):
+    def setConnection(self, consumerConnection):
         '''
-
-        Setter for the connections to worker and from learner
+        Setter for the interprocess connection queue
 
         Parameters
         ----------
-        workerConnection : Connection
-            the transmitter connection of a simplex pipe between the communicator and the worker
+        consumerConnection : Connection
+            the connection queue between the communicator and the consumer (that can be worker or coordinator)
         '''
 
-        #if isinstance(workerConnection,Connection):
-        self._workerConnection    = workerConnection
-        #else:
-        #    raise ValueError("Attribute workerConnection is not of type Connection, it is of type" + str(type(workerPipe)))
-        self.info("workerconnection was set!")
+        self._consumerConnection = consumerConnection
+        self.info("Consumer connection was set")
 
     def initiate(self):
         '''
@@ -137,10 +119,10 @@ class Communicator(baseClass, Process):
         implementation of the start function of process parent class
         '''
 
-        super().start()
+        if (self._consumerConnection == None):
+            raise AttributeError("Consumer connection wasn't set properly!")
 
-        if (self._workerConnection == None):
-            raise AttributeError("workerConnection wasn't set properly!")
+        super().start()
 
     def run(self):
         '''
@@ -148,4 +130,3 @@ class Communicator(baseClass, Process):
         '''
 
         pass
-

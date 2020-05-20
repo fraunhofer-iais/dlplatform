@@ -1,4 +1,3 @@
-
 from DLplatform.baseClass import baseClass
 from DLplatform.parameters import Parameters
 from DLplatform.communicating import Communicator
@@ -7,7 +6,6 @@ from abc import ABCMeta
 from typing import List
 import time
 import sys
-
 
 class Learner(baseClass):
     '''
