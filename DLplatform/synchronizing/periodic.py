@@ -41,10 +41,12 @@ class PeriodicSync(Synchronizer):
             raise AttributeError("No aggregator is set")
 
         # this condition is needed to call the 'evaluate' method in a standardized way across the different sync schemes
-        if set(list(nodesDict.keys())) == set(activeNodes):
+        if set(list(nodesDict.keys())) == set(allNodes):
             return activeNodes, self._aggregator(list(nodesDict.values())), {}
         else:
-            return [], None, {}
+            # we add all the not active nodes to the balancing set, so coordinator
+            # fills it in with the final states
+            return list(set(allNodes).difference(set(activeNodes))), None, {}
 
     def __str__(self):
         return "Periodic synchronization"

@@ -14,7 +14,7 @@ class DynamicSync(Synchronizer):
     a violation occurs. This is the most basic form of resolution protocol.
     '''
 
-    def __init__(self, delta: float, refPoint = None, name = "DynamicSync"):
+    def __init__(self, delta: float, name = "DynamicSync"):
         '''
         Initialize BaseClass parent with name DynamicSync
 
@@ -28,7 +28,6 @@ class DynamicSync(Synchronizer):
         '''
         Synchronizer.__init__(self, name = name)
         self._delta = delta
-        self._refPoint = refPoint
 
     def evaluateLocal(self, modelParam, refParam):
         currentDivergence = self._aggregator.calculateDivergence(modelParam, refParam)
@@ -68,15 +67,10 @@ class DynamicSync(Synchronizer):
 
         if set(list(nodesDict.keys())) == set(allNodes):
             for id in nodesDict:
-                if id in set(activeNodes) and nodesDict[id] is None:
+                if nodesDict[id] is None:
                     # not all nodes for which parameters have been requested have answered. Thus, we wait.
                     return [], None, {}
-                # this only can happen when we already have deactivated nodes, so hopefully by that time we have a reference point
-                # so instead of deactivated node parameters, that we cannot request, we take reference point value
-                elif not id in set(activeNodes):
-                    nodesDict[id] = self._refPoint
             newModel = self._aggregator(list(nodesDict.values()))
-            self._refPoint = newModel.getCopy()
             return activeNodes, newModel, {"setReference":True}
         else:
             # there is a violation and we are not waiting for requested models. Thus we trigger a full synchronization.
@@ -150,13 +144,9 @@ class DynamicHedgeSync(DynamicSync):
             raise AttributeError("No aggregator is set")
 
         for id in nodesDict:
-            if id in set(activeNodes) and nodesDict[id] is None:
+            if nodesDict[id] is None:
                 # not all nodes for which parameters have been requested have answered. Thus, we wait.
                 return [], None, {}
-            # this only can happen when we already have deactivated nodes, so hopefully by that time we have a reference point
-            # so instead of deactivated node parameters, that we cannot request, we take reference point value
-            elif not id in set(activeNodes):
-                nodesDict[id] = self._refPoint
 
         if set(list(nodesDict.keys())) == set(allNodes):
             #i.e., a full sync was triggered and we have received all models.
