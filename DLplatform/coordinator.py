@@ -6,7 +6,6 @@ from DLplatform.synchronizing import Synchronizer
 from pickle import loads
 from multiprocessing import Queue
 import sys
-from collections import OrderedDict
 
 '''
     The InitializationHandler defines, how the coordinator handles model parameters when new learners register. 
@@ -20,11 +19,6 @@ from collections import OrderedDict
     around the same common parameters.
 '''
 class InitializationHandler:
-    def __init__(self):
-    
-    '''
-        returns the initialization parameters
-    '''
     def __call__(self, params : Parameters):
         return params
     
@@ -90,7 +84,7 @@ class Coordinator(baseClass):
         self._finalNodeStates           = {}
         # if this parameter is set, then the coordinator will wait till all the nodes are registered
         self._nodesAmount               = nodesAmount
-        self._waitingNodes              = OrderedDict()
+        self._waitingNodes              = {}
 
         # initializing queue for communication with communicator process
         self._communicatorConnection    = Queue()
@@ -241,12 +235,12 @@ class Coordinator(baseClass):
             if self._nodesAmount is None:
                 self._communicator.sendAveragedModel(identifiers = [nodeId], param = newParams, flags = {"setReference":True})
             else:
+                self._waitingNodes[nodeId] = newParams
                 # we send around the initial parameters only when all the expected nodes are there
                 if len(self._waitingNodes) == self._nodesAmount:
-                    self._communicator.sendAveragedModel(identifiers = list(self._waitingNodes.keys()), param = list(self._waitingNodes.values()), flags = {"setReference":True})
+                    for id in self._waitingNodes:
+                        self._communicator.sendAveragedModel(identifiers = [id], param = self._waitingNodes[id], flags = {"setReference":True})
                     self._waitingNodes.clear()
-                else:
-                    self._waitingNodes[nodeId] = newParams
             #TODO: maybe we have to check the balancing set here again. 
             #If a node registered, while we are doing a full sync, or a balancing operation, 
             #we might need to check. But then, maybe it's all ok like this.
