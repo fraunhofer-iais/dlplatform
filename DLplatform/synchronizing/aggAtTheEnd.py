@@ -7,7 +7,7 @@ class AggregationAtTheEnd(Synchronizer):
     def __init__(self, name = "Aggregation-at-the-end"):
         Synchronizer.__init__(self, name = name)
     
-    def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[str], Parameters):
+    def evaluate(self, nodesDict, activeNodes: List[str]) -> (List[str], Parameters):
         if self._aggregator is None:
             self.error("No aggregator is set")
             raise AttributeError("No aggregator is set")

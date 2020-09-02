@@ -18,7 +18,7 @@ class PeriodicSync(Synchronizer):
     def evaluateLocal(self, param, paramRef):
         return "period of training passed", False
 
-    def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[str], Parameters):
+    def evaluate(self, nodesDict, activeNodes: List[str]) -> (List[str], Parameters):
         '''
 
         Periodic synchronization mechanism. This method is called by the coordinator during the balancing process.
@@ -27,7 +27,6 @@ class PeriodicSync(Synchronizer):
         ----------
         nodesDict - dictionary of node identifiers as keys and their parameters as values that are in violation or requested for balancing
         activeNodes - list of nodes' identifiers that are active currently
-        allNodes - list of nodes' identifiers that were taking part in the learning
 
         Returns
         -------
@@ -41,12 +40,10 @@ class PeriodicSync(Synchronizer):
             raise AttributeError("No aggregator is set")
 
         # this condition is needed to call the 'evaluate' method in a standardized way across the different sync schemes
-        if set(list(nodesDict.keys())) == set(allNodes):
+        if set(list(nodesDict.keys())) == set(activeNodes):
             return activeNodes, self._aggregator(list(nodesDict.values())), {}
         else:
-            # we add all the not active nodes to the balancing set, so coordinator
-            # fills it in with the final states
-            return list(set(allNodes).difference(set(activeNodes))), None, {}
+            return [], None, {}
 
     def __str__(self):
         return "Periodic synchronization"
