@@ -81,7 +81,7 @@ class Coordinator(baseClass):
         self._initHandler               = InitializationHandler()
         self._learningLogger            = None
         # if this parameter is set, then the coordinator will wait till all the nodes are registered
-        self._nodesToWait               = nodesAmount
+        self._nodesToWait               = nodesToWait
         self._waitingNodes              = {}
         # if this parameter is larger than 0, then when less than this amount of workers is active,
         # process stops - all the other still active workers are asked to exit
@@ -288,10 +288,14 @@ class Coordinator(baseClass):
 
         while True:
             self.checkInterProcessCommunication()
+            # since the deregistration may happen during the balancing evaluation, we have to check if there are not active nodes
+            nonActiveBalancingSet = set(self._balancingSet.keys()).difference(set(self._activeNodes))
+            for nodeId in nonActiveBalancingSet:
+                self._balancingSet.pop(nodeId)
             # we have to enter this in two cases:
             # - we got a violation
-            # - we did not get all the balancing models
-            if len(self._violations) > 0 or len(self._balancingSet.keys()) != 0:
+            # - we got all the balancing models
+            if len(self._violations) > 0 or (len(self._balancingSet.keys()) != 0 and not None in set(self._balancingSet.values())):
                 if len(self._violations) > 0:
                     message = loads(self._violations[0])
                     nodeId = message['id']
@@ -305,7 +309,7 @@ class Coordinator(baseClass):
                 nodes, params, flags = self._synchronizer.evaluate(self._balancingSet, self._activeNodes)
                 # fill balancing set with None for new nodes in balancing set
                 for newNode in nodes:
-                    if not newNode in self._balancingSet.keys():
+                    if not newNode in self._balancingSet.keys() and newNode in self._activeNodes:
                         self._balancingSet[newNode] = None
 
                 if params is None and None in self._balancingSet.values():
