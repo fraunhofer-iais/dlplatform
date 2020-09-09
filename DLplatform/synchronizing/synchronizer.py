@@ -76,7 +76,7 @@ class Synchronizer(baseClass):
 
         raise NotImplementedError
 
-    def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[int], Parameters):
+    def evaluate(self, nodesDict, activeNodes: List[str]) -> (List[int], Parameters):
         '''
         Main method that should be implemented by a particular
         synchronization mechanism. This is the method called 
@@ -86,7 +86,6 @@ class Synchronizer(baseClass):
         ----------
         nodesDict - dictionary of nodes' identifiers as keys and parameters as values that are in violation or requested for balancing
         activeNodes - list of nodes' identifiers that are active now
-        allNodes - list of nodes' identifiers that were taking part in the learning
 
         Returns
         -------

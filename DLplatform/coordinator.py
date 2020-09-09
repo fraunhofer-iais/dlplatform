@@ -19,43 +19,30 @@ import sys
     around the same common parameters.
 '''
 class InitializationHandler:
-    def __init__(self):
-        self._initRefPoint = None
-    
-    '''
-        returns the initialization parameters and the initial reference point
-    '''
     def __call__(self, params : Parameters):
-        if self._initRefPoint is None:
-            self._initRefPoint = params
-        return params, self._initRefPoint
+        return params
     
 class UseFirstInitHandler(InitializationHandler):
     def __init__(self):
         self._initParams = None
-        self._initRefPoint = None
     
     
     def __call__(self, params : Parameters):
         if self._initParams is None:
             self._initParams = params
-        if self._initRefPoint is None:
-            self._initRefPoint = params
-        return self._initParams, self._initRefPoint
+        return self._initParams
     
+## %TODO finish implementation of noisy initialization
 class NoisyInitHandler(InitializationHandler):
     def __init__(self, noiseParams):
         self._noiseParams = noiseParams
         self._initParams = None
-        self._initRefPoint = None
     
     def __call__(self, params : Parameters):
         if self._initParams is None:
             self._initParams = params
-        if self._initRefPoint is None:
-            self._initRefPoint = params
         eps = self.getNoise()
-        return self._initParams.add(eps), self._initRefPoint
+        return self._initParams.add(eps)
     
     def getNoise(self):
         if self._noiseParams['type'] == "uniform":
@@ -69,7 +56,7 @@ class Coordinator(baseClass):
     synchronization and information exchange between workers
     '''    
     
-    def __init__(self):
+    def __init__(self, minStartNodes = 0, minStopNodes = 0):
         '''
 
         Initializes a 'Coordinator' object.
@@ -93,7 +80,12 @@ class Coordinator(baseClass):
         self._activeNodes	            = []
         self._initHandler               = InitializationHandler()
         self._learningLogger            = None
-        self._allNodes		            = []
+        # if this parameter is set, then the coordinator will wait till all the nodes are registered
+        self._minStartNodes             = minStartNodes
+        self._waitingNodes              = {}
+        # if this parameter is larger than 0, then when less than this amount of workers is active,
+        # process stops - all the other still active workers are asked to exit
+        self._minStopNodes              = minStopNodes
 
         # initializing queue for communication with communicator process
         self._communicatorConnection    = Queue()
@@ -226,7 +218,10 @@ class Coordinator(baseClass):
             self.info("Coordinator received a balancing model")
             self._communicator.learningLogger.logBalancingMessage(exchange, routing_key, message['id'], message_size, 'receive')
             # append it to violations - thus we enter the balancing process again
-            #@TODO: maybe some model received two requests and balancing is already done
+            # model can send the answer to balancing request only once - then it will be waiting 
+            # for a new model to come and will not react to requests anymore
+            # so it cannot be that the model answers several times and thus initiates new 
+            # balancing when not needed
             self._violations.append(body)
         if routing_key == 'registration':
             self.info("Coordinator received a registration")
@@ -234,12 +229,19 @@ class Coordinator(baseClass):
             
             nodeId = message['id']
             self._learningLogger.logModel(filename = "initialization_node" + str(message['id']), params = message['param'])
-            newParams, newRefPoint = self._initHandler(message['param'])
+            newParams = self._initHandler(message['param'])
             self._learningLogger.logModel(filename = "startState_node" + str(message['id']), params = message['param'])
-            self._synchronizer._refPoint = newRefPoint
-            self._communicator.sendAveragedModel(identifiers = [nodeId], param = newParams, flags = {"setReference":True})
             self._activeNodes.append(nodeId)
-            self._allNodes.append(nodeId)
+            self._waitingNodes[nodeId] = newParams
+            # we send around the initial parameters only when all the expected nodes are there
+            # in case when parameter is not set, it is equal to 0 - so every new node will satisfy the condition
+            if len(self._waitingNodes) >= self._minStartNodes:
+                print("we have already waiting", list(self._waitingNodes.keys()))
+                for id in self._waitingNodes:
+                    self._communicator.sendAveragedModel(identifiers = [id], param = self._waitingNodes[id], flags = {"setReference":True})
+                self._waitingNodes.clear()
+                # we want to allow to wait for 10 nodes, but then others to join dynamically
+                self._minStartNodes = 0
             #TODO: maybe we have to check the balancing set here again. 
             #If a node registered, while we are doing a full sync, or a balancing operation, 
             #we might need to check. But then, maybe it's all ok like this.
@@ -252,8 +254,20 @@ class Coordinator(baseClass):
             self._communicator.learningLogger.logDeregistrationMessage(exchange, routing_key, message['id'], message_size, 'receive')
             self._learningLogger.logModel(filename = "finalState_node" + str(message['id']), params = message['param'])
             self._activeNodes.remove(message['id'])
-            if len(self._activeNodes) == 0:
-                self.info("No active workers left, exiting.")
+            if not self._balancingSet.get(message['id']) is None:
+                self._balancingSet.pop(message['id'])
+            # send exit messages if we have less than needed active nodes
+            # if the parameter is not set and equal 0 this condition will not work
+            if len(self._activeNodes) < self._minStopNodes:
+                print("We have active only", len(self._activeNodes), "quitting")
+                self.info("Not enough active workers left, exiting.")
+                for nodeId in self._activeNodes:
+                    self._communicator.sendExitRequest(nodeId)
+                # we do not want to send exit messages again
+                self._minStopNodes = 0
+            # when all the nodes deregistered we stop the coordinator process
+            elif len(self._activeNodes) == 0:
+                self.info("Training finished, exiting.")
                 sys.exit()
 
     def run(self):
@@ -278,10 +292,14 @@ class Coordinator(baseClass):
 
         while True:
             self.checkInterProcessCommunication()
+            # since the deregistration may happen during the balancing evaluation, we have to check if there are not active nodes
+            nonActiveBalancingSet = set(self._balancingSet.keys()).difference(set(self._activeNodes))
+            for nodeId in nonActiveBalancingSet:
+                self._balancingSet.pop(nodeId)
             # we have to enter this in two cases:
             # - we got a violation
-            # - we did not get all the balancing models
-            if len(self._violations) > 0 or len(self._balancingSet.keys()) != 0:
+            # - we got all the balancing models
+            if len(self._violations) > 0 or (len(self._balancingSet.keys()) != 0 and not None in set(self._balancingSet.values())):
                 if len(self._violations) > 0:
                     message = loads(self._violations[0])
                     nodeId = message['id']
@@ -292,24 +310,24 @@ class Coordinator(baseClass):
                     # a full_sync - might be a case that blocking everything, balancing one violation and then considering the next one
                     # is a better idea from the point of view of effectiveness
                     del self._violations[0]
-                nodes, params, flags = self._synchronizer.evaluate(self._balancingSet, self._activeNodes, self._allNodes)
+                nodes, params, flags = self._synchronizer.evaluate(self._balancingSet, self._activeNodes)
                 # fill balancing set with None for new nodes in balancing set
                 for newNode in nodes:
-                    if not newNode in self._balancingSet.keys():
+                    if not newNode in self._balancingSet.keys() and newNode in self._activeNodes:
                         self._balancingSet[newNode] = None
 
                 if params is None and None in self._balancingSet.values():
                     # request for models from balancing set nodes
                     for newNode in nodes:
+                        # balancingRequest can be sent only when it is dynamic averaging
                         if self._balancingSet[newNode] is None and newNode in self._activeNodes:
                             self._communicator.sendBalancingRequest(newNode)
-                # None can still be there in _balancingSet,values() if the nodes are inactive and used for balancing
-                # then reference point (previous average) is used instead
                 elif not params is None:
-                    self._communicator.sendAveragedModel(nodes, params, flags)
+                    # we do not want to update the nodes that are already inactive
+                    nodesToSendAvg = list(set(nodes) & set(self._activeNodes))
+                    self._communicator.sendAveragedModel(nodesToSendAvg, params, flags)
                     self._learningLogger.logBalancing(flags, self._nodesInViolation, list(self._balancingSet.keys()))
-                    if set(nodes) == set(self._allNodes) or "nosync" in flags:
-                        self._learningLogger.logAveragedModel(nodes, params, flags)
+                    self._learningLogger.logAveragedModel(nodes, params, flags)
                     self._balancingSet.clear()
                     self._nodesInViolation = []
 

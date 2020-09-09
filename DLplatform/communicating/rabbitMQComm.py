@@ -318,6 +318,35 @@ class RabbitMQComm(Communicator):
         self._publish(self._exchangeNodes, topic, '')
         self.learningLogger.logBalancingRequestMessage(self._exchangeNodes, topic, identifier, message_size, 'send')
 
+    def sendExitRequest(self, identifier : str):
+        '''
+        Publish message to ask the worker to finish its process
+        Called from coordinator when not enough workers are left
+        with topic identifier of the worker and 'exit'. Message is empty.
+
+        Parameters
+        ----------
+        identifier of a worker requested to finish execution
+
+        Returns
+        -------
+        None
+
+        Exception
+        -------
+        ValueError
+            in case identifier is not a string
+        '''
+        if not isinstance(identifier, str):
+            error_text = "The argument identifier is not of type" + str(str) + "it is of type " + str(type(identifier))
+            self.error(error_text)
+            raise ValueError(error_text)
+
+        topic = 'exit.' + identifier
+        # since it is just a request nothing should be sent in a message
+        message_size = 0
+        self._publish(self._exchangeNodes, topic, '')
+
     def sendAveragedModel(self, identifiers : List[str], param : Parameters, flags: dict):
         '''
         Publish message to send an averaged model to the nodes

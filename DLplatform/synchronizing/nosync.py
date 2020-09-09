@@ -14,7 +14,7 @@ class NoSync(Synchronizer):
     def evaluateLocal(self, param, paramRef):
         return "period of training passed", False
     
-    def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[str], Parameters):
+    def evaluate(self, nodesDict, activeNodes: List[str]) -> (List[str], Parameters):
         if len(nodesDict) > 1:
             self.error("More than one node sent its model for nosync.")
             raise AttributeError("More than one node sent its model for nosync.")

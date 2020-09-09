@@ -14,7 +14,7 @@ class DynamicSync(Synchronizer):
     a violation occurs. This is the most basic form of resolution protocol.
     '''
 
-    def __init__(self, delta: float, refPoint = None, name = "DynamicSync"):
+    def __init__(self, delta: float, name = "DynamicSync"):
         '''
         Initialize BaseClass parent with name DynamicSync
 
@@ -28,13 +28,12 @@ class DynamicSync(Synchronizer):
         '''
         Synchronizer.__init__(self, name = name)
         self._delta = delta
-        self._refPoint = refPoint
 
     def evaluateLocal(self, modelParam, refParam):
         currentDivergence = self._aggregator.calculateDivergence(modelParam, refParam)
         return str(currentDivergence) + "<=" + str(self._delta), currentDivergence <= self._delta
     
-    def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[str], Parameters):
+    def evaluate(self, nodesDict, activeNodes: List[str]) -> (List[str], Parameters):
         '''
         Mechanism of finding the averaged model
         Aggregator is called only in case when the nodes in balancing process 
@@ -50,7 +49,6 @@ class DynamicSync(Synchronizer):
         ----------
         nodesDict - dictionary of nodes' identifiers as keys and their parameters as values that are in violation or requested for balancing
         activeNodes - list of nodes' identifiers that are active currently
-        allNodes - list of nodes' identifiers that were taking part in learning
 
         Returns
         -------
@@ -66,21 +64,16 @@ class DynamicSync(Synchronizer):
             self.error("No aggregator is set")
             raise AttributeError("No aggregator is set")
 
-        if set(list(nodesDict.keys())) == set(allNodes):
+        if set(list(nodesDict.keys())) == set(activeNodes):
             for id in nodesDict:
-                if id in set(activeNodes) and nodesDict[id] is None:
+                if nodesDict[id] is None:
                     # not all nodes for which parameters have been requested have answered. Thus, we wait.
                     return [], None, {}
-                # this only can happen when we already have deactivated nodes, so hopefully by that time we have a reference point
-                # so instead of deactivated node parameters, that we cannot request, we take reference point value
-                elif not id in set(activeNodes):
-                    nodesDict[id] = self._refPoint
             newModel = self._aggregator(list(nodesDict.values()))
-            self._refPoint = newModel.getCopy()
             return activeNodes, newModel, {"setReference":True}
         else:
             # there is a violation and we are not waiting for requested models. Thus we trigger a full synchronization.
-            return allNodes, None, {}
+            return activeNodes, None, {}
 
     def __str__(self):
         return "Dynamic synchronization, delta=" + str(self._delta)
@@ -120,7 +113,7 @@ class DynamicHedgeSync(DynamicSync):
         currentDivergence = self._aggregator.calculateDivergence(modelParam, refParam)
         return str(currentDivergence) + "<=" + str(self._delta), currentDivergence <= self._delta
 
-    def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[str], Parameters):
+    def evaluate(self, nodesDict, activeNodes: List[str]) -> (List[str], Parameters):
         '''
         Mechanism of finding the averaged model
         Aggregator is called both in case when the nodes in balancing process 
@@ -133,7 +126,6 @@ class DynamicHedgeSync(DynamicSync):
         ----------
         nodesDict - dictionary of nodes' identifiers as keys and their parameters as values that are in violation or requested for balancing
         activeNodes - list of nodes' identifiers that are active currently
-        allNodes - list of nodes' identifiers that were taking part in learning
 
         Returns
         -------
@@ -150,15 +142,11 @@ class DynamicHedgeSync(DynamicSync):
             raise AttributeError("No aggregator is set")
 
         for id in nodesDict:
-            if id in set(activeNodes) and nodesDict[id] is None:
+            if nodesDict[id] is None:
                 # not all nodes for which parameters have been requested have answered. Thus, we wait.
                 return [], None, {}
-            # this only can happen when we already have deactivated nodes, so hopefully by that time we have a reference point
-            # so instead of deactivated node parameters, that we cannot request, we take reference point value
-            elif not id in set(activeNodes):
-                nodesDict[id] = self._refPoint
 
-        if set(list(nodesDict.keys())) == set(allNodes):
+        if set(list(nodesDict.keys())) == set(activeNodes):
             #i.e., a full sync was triggered and we have received all models.
             newModel = self._aggregator(list(nodesDict.values()))
             self._refPoint = newModel.getCopy()
@@ -176,12 +164,12 @@ class DynamicHedgeSync(DynamicSync):
                 return updateNodes, newModel, {}
             else:
                 # allow to request for balancing even inactive nodes
-                requestSet = self.augmentBalancingSet(list(nodesDict.keys()), allNodes)
-                if len(set(requestSet).union(set(list(nodesDict.keys())))) >= (len(allNodes) / 2):
+                requestSet = self.augmentBalancingSet(list(nodesDict.keys()), activeNodes)
+                if len(set(requestSet).union(set(list(nodesDict.keys())))) >= (len(activeNodes) / 2):
                     #if the balancing set grew to more than half of all learners, trigger 
                     #a full sync instead of a local synchronization. This is a hedging 
                     #strategy to avoid endless local balancing.
-                    return allNodes, None, {}
+                    return activeNodes, None, {}
                 return requestSet, None, {}
             
     def augmentBalancingSet(self, nodes: List[str], registeredNodes: List[str]) -> List[str]:

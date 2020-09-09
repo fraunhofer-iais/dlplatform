@@ -18,7 +18,7 @@ class PeriodicSync(Synchronizer):
     def evaluateLocal(self, param, paramRef):
         return "period of training passed", False
 
-    def evaluate(self, nodesDict, activeNodes: List[str], allNodes: List[str]) -> (List[str], Parameters):
+    def evaluate(self, nodesDict, activeNodes: List[str]) -> (List[str], Parameters):
         '''
 
         Periodic synchronization mechanism. This method is called by the coordinator during the balancing process.
@@ -27,7 +27,6 @@ class PeriodicSync(Synchronizer):
         ----------
         nodesDict - dictionary of node identifiers as keys and their parameters as values that are in violation or requested for balancing
         activeNodes - list of nodes' identifiers that are active currently
-        allNodes - list of nodes' identifiers that were taking part in the learning
 
         Returns
         -------
