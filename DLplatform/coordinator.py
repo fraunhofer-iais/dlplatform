@@ -56,7 +56,7 @@ class Coordinator(baseClass):
     synchronization and information exchange between workers
     '''    
     
-    def __init__(self, nodesToWait = None, minActive = 0):
+    def __init__(self, minStartNodes = 0, minStopNodes = 0):
         '''
 
         Initializes a 'Coordinator' object.
@@ -81,11 +81,11 @@ class Coordinator(baseClass):
         self._initHandler               = InitializationHandler()
         self._learningLogger            = None
         # if this parameter is set, then the coordinator will wait till all the nodes are registered
-        self._nodesToWait               = nodesToWait
+        self._minStartNodes             = minStartNodes
         self._waitingNodes              = {}
         # if this parameter is larger than 0, then when less than this amount of workers is active,
         # process stops - all the other still active workers are asked to exit
-        self._minActive                 = minActive
+        self._minStopNodes              = minStopNodes
 
         # initializing queue for communication with communicator process
         self._communicatorConnection    = Queue()
@@ -232,16 +232,16 @@ class Coordinator(baseClass):
             newParams = self._initHandler(message['param'])
             self._learningLogger.logModel(filename = "startState_node" + str(message['id']), params = message['param'])
             self._activeNodes.append(nodeId)
-            if self._nodesToWait is None:
-                self._communicator.sendAveragedModel(identifiers = [nodeId], param = newParams, flags = {"setReference":True})
-            else:
-                self._waitingNodes[nodeId] = newParams
-                # we send around the initial parameters only when all the expected nodes are there
-                if len(self._waitingNodes) == self._nodesToWait:
-                    for id in self._waitingNodes:
-                        self._communicator.sendAveragedModel(identifiers = [id], param = self._waitingNodes[id], flags = {"setReference":True})
-                    self._waitingNodes.clear()
-                    self._nodesToWait = None
+            self._waitingNodes[nodeId] = newParams
+            # we send around the initial parameters only when all the expected nodes are there
+            # in case when parameter is not set, it is equal to 0 - so every new node will satisfy the condition
+            if len(self._waitingNodes) >= self._minStartNodes:
+                print("we have already waiting", list(self._waitingNodes.keys()))
+                for id in self._waitingNodes:
+                    self._communicator.sendAveragedModel(identifiers = [id], param = self._waitingNodes[id], flags = {"setReference":True})
+                self._waitingNodes.clear()
+                # we want to allow to wait for 10 nodes, but then others to join dynamically
+                self._minStartNodes = 0
             #TODO: maybe we have to check the balancing set here again. 
             #If a node registered, while we are doing a full sync, or a balancing operation, 
             #we might need to check. But then, maybe it's all ok like this.
@@ -256,13 +256,17 @@ class Coordinator(baseClass):
             self._activeNodes.remove(message['id'])
             if not self._balancingSet.get(message['id']) is None:
                 self._balancingSet.pop(message['id'])
-            if not self._minActive == 0 and len(self._activeNodes) < self._minActive:
+            # send exit messages if we have less than needed active nodes
+            # if the parameter is not set and equal 0 this condition will not work
+            if len(self._activeNodes) < self._minStopNodes:
+                print("We have active only", len(self._activeNodes), "quitting")
                 self.info("Not enough active workers left, exiting.")
                 for nodeId in self._activeNodes:
                     self._communicator.sendExitRequest(nodeId)
                 # we do not want to send exit messages again
-                self._minActive = 0
-            if len(self._activeNodes) == 0:
+                self._minStopNodes = 0
+            # when all the nodes deregistered we stop the coordinator process
+            elif len(self._activeNodes) == 0:
                 self.info("Training finished, exiting.")
                 sys.exit()
 
