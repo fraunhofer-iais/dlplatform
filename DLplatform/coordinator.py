@@ -236,7 +236,6 @@ class Coordinator(baseClass):
             # we send around the initial parameters only when all the expected nodes are there
             # in case when parameter is not set, it is equal to 0 - so every new node will satisfy the condition
             if len(self._waitingNodes) >= self._minStartNodes:
-                print("we have already waiting", list(self._waitingNodes.keys()))
                 for id in self._waitingNodes:
                     self._communicator.sendAveragedModel(identifiers = [id], param = self._waitingNodes[id], flags = {"setReference":True})
                 self._waitingNodes.clear()
@@ -259,7 +258,6 @@ class Coordinator(baseClass):
             # send exit messages if we have less than needed active nodes
             # if the parameter is not set and equal 0 this condition will not work
             if len(self._activeNodes) < self._minStopNodes:
-                print("We have active only", len(self._activeNodes), "quitting")
                 self.info("Not enough active workers left, exiting.")
                 for nodeId in self._activeNodes:
                     self._communicator.sendExitRequest(nodeId)
