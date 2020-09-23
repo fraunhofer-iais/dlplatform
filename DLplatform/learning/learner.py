@@ -25,6 +25,7 @@ class Learner(baseClass):
         self._learningLogger            = None
         self._communicator              = None
         self._synchronizer              = None
+        self._stop                      = False
         
     def setIdentifier(self, identifier):
         '''
@@ -84,7 +85,7 @@ class Learner(baseClass):
 
         self.info("Stopping criterion was met, sending suicide note to coordinator")
         self._communicator.sendDeregistration(self._identifier, self.getParameters())
-        sys.exit()
+        self._stop = True
         
     def setModel(self, param : Parameters, flags: dict):
         '''
