@@ -382,7 +382,7 @@ class BatchLearner(Learner):
         self._isInitialized             = True
         self._parametersRequested       = False
         self._waitingForAModel          = False
-        self._stop                      = False
+        self._batchTrainingCompleted    = False
         self._trainingBatch             = []
         self._seenExamples              = 0
         
@@ -396,9 +396,9 @@ class BatchLearner(Learner):
         boolean value, defining allowance to accept training data
 
         '''
-        if self._stop and not self._waitingForAModel: #as soon as the stopping criterion is met and the aggregate model is set, the learner is stopped
+        if self._batchTrainingCompleted and not self._waitingForAModel: #as soon as the stopping criterion is met and the aggregate model is set, the learner is stopped
             self.stopExecution()
-        return self._isInitialized and not self._isTraining and not self._stop and not self._waitingForAModel
+        return self._isInitialized and not self._isTraining and not self._batchTrainingCompleted and not self._waitingForAModel
     
     def obtainData(self, example: tuple):
         '''
@@ -433,7 +433,7 @@ class BatchLearner(Learner):
             #batch learners report a violation whenever they finished training. 
             #The model is send once, aggregated and redistributed, then the learner stops.
             self.reportViolation()
-            self._stop = True
+            self._batchTrainingCompleted = True
             self._isTraining = False
             
             
@@ -463,6 +463,6 @@ class BatchLearner(Learner):
         '''
         Learner.answerParameterRequest(self)
         self._parametersRequested = True
-        if self._stop and not self._waitingForAModel:
+        if self._batchTrainingCompleted and not self._waitingForAModel:
             self.stopExecution()
 
