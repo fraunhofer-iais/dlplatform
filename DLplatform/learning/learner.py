@@ -9,7 +9,7 @@ import sys
 
 class Learner(baseClass):
     '''
-    Abstract class defining the structure of a IncrementalLearner. This includes batch and online learners.
+    Abstract class defining the structure of a learner. This is the basis for batch and incremental learners.
 
     '''
     __metaclass__ = ABCMeta
