@@ -347,7 +347,7 @@ class RabbitMQComm(Communicator):
         message_size = 0
         self._publish(self._exchangeNodes, topic, '')
 
-    def sendAveragedModel(self, identifiers : List[str], param : Parameters, flags: dict):
+    def sendAggregatedModel(self, identifiers : List[str], param : Parameters, flags: dict):
         '''
         Publish message to send an averaged model to the nodes
         Called from coordinator after balancing process and published to nodes

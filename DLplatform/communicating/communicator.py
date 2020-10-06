@@ -114,7 +114,7 @@ class Communicator(baseClass, Process):
 
         raise NotImplementedError
 
-    def sendAveragedModel(self, identifiers : List[str], param : Parameters, flags: dict):
+    def sendAggregatedModel(self, identifiers : List[str], param : Parameters, flags: dict):
         '''
         Publish message to send an averaged model to the nodes
         '''
