@@ -361,7 +361,7 @@ class Worker(baseClass):
         # only now we should request for initial model - or we will not be able to receive the answer
         self._learner.requestInitialModel()
 
-        while not self._learner._stop:
+        while self._learner.isAlive():
             self.checkInterProcessCommunication()
             if len(self._dataBuffer) > 0:
                 if self._learner.canObtainData():
